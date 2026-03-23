@@ -272,7 +272,7 @@ function initMSAL(){
       authority:   MSAL_CONFIG.authority,
       redirectUri: MSAL_CONFIG.redirectUri,
     },
-    cache: { cacheLocation: 'sessionStorage' }
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
   });
 }
 
@@ -618,7 +618,7 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
 </script>
 
 <!-- ─── MSAL — Login M365 ─────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.0/lib/msal-browser.min.js"></script>
+<script src="https://unpkg.com/@azure/msal-browser@3.28.0/lib/msal-browser.min.js"></script>
 
 <!-- ─── LOGIN ───────────────────────────────────────────────────── -->
 <div id="login-screen">

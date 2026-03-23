@@ -669,6 +669,20 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
     <nav class="sidebar-nav" id="sidebar-nav"></nav>
 
     <div class="sidebar-footer">
+      <!-- Selector de rol para pruebas — solo visible para josafat.ramirez@faza.com.mx -->
+      <div id="dev-role-switcher" style="display:none;padding:8px 12px;border-top:1px solid var(--border);margin-bottom:4px">
+        <div style="font-size:10px;color:var(--yellow);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🧪 Modo prueba — cambiar rol</div>
+        <select onchange="cambiarRolPrueba(this.value)"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;outline:none">
+          <option value="empleado">👤 Colaborador</option>
+          <option value="gerente">✅ Gerente</option>
+          <option value="director">🏢 Director General</option>
+          <option value="administracion">💼 Administración (Luis G.)</option>
+          <option value="rh">👥 Recursos Humanos</option>
+          <option value="tesoreria">💰 Tesorería</option>
+          <option value="admin">⚙️ Admin sistema</option>
+        </select>
+      </div>
       <div class="nav-item" onclick="logout()">
         <span class="nav-icon">🚪</span>
         <span>Cerrar sesión</span>
@@ -873,6 +887,53 @@ function doLoginM365({ name, email, role }){
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   buildSidebar(role);
   loadSolicitudes();
+
+  // Mostrar selector de rol de prueba solo para Josafat
+  const DEV_EMAILS = ['josafat.ramirez@faza.com.mx'];
+  const switcher = document.getElementById('dev-role-switcher');
+  if(switcher && DEV_EMAILS.includes(email.toLowerCase())){
+    switcher.style.display = 'block';
+    // Seleccionar el rol actual en el dropdown
+    const sel = switcher.querySelector('select');
+    if(sel) sel.value = role;
+  }
+}
+
+// Cambia el rol sin cerrar sesión — solo para pruebas
+function cambiarRolPrueba(nuevoRol){
+  const rolesLabel = {
+    empleado:'Colaborador', gerente:'Gerente de Área', director:'Director General',
+    administracion:'Administración', rh:'Recursos Humanos', tesoreria:'Tesorería', admin:'Administrador'
+  };
+  USER.role = nuevoRol;
+  document.getElementById('sidebar-role-label').textContent = rolesLabel[nuevoRol] || nuevoRol;
+
+  // Simular email del rol para ver las solicitudes correctas
+  const emailsRol = {
+    empleado:       'colaborador.prueba@faza.com.mx',
+    gerente:        'josafat.ramirez@faza.com.mx',
+    director:       'eduardo.faccuseh@faza.com.mx',
+    administracion: 'luis.gallardo@faza.com.mx',
+    rh:             'liliana.jimenez@faza.com.mx',
+    tesoreria:      'josafat.ramirez@faza.com.mx',
+    admin:          'josafat.ramirez@faza.com.mx',
+  };
+  // Mantener nombre real pero cambiar el email simulado para filtros
+  USER.emailReal = USER.emailReal || USER.email;
+  USER.email = emailsRol[nuevoRol] || USER.emailReal;
+
+  buildSidebar(nuevoRol);
+
+  // Re-mostrar el switcher después de rebuild del sidebar
+  const switcher = document.getElementById('dev-role-switcher');
+  if(switcher){
+    switcher.style.display = 'block';
+    const sel = switcher.querySelector('select');
+    if(sel) sel.value = nuevoRol;
+  }
+
+  loadSolicitudes();
+  toast(`🧪 Rol cambiado a: ${rolesLabel[nuevoRol]}`, 'info');
 }
 
 function logout(){

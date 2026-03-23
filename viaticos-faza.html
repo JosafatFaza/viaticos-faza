@@ -1742,6 +1742,11 @@ function renderMisComprobantes(c){
           <label>Descripción / Nota</label>
           <input type="text" id="cg-desc" placeholder="Descripción del gasto (opcional)">
         </div>
+        <div class="form-group">
+          <label>Adjuntar archivo <span style="color:var(--text3);font-size:11px">(foto del ticket, CFDI PDF, XML — opcional)</span></label>
+          <input type="file" id="cg-archivo" accept=".pdf,.xml,.jpg,.jpeg,.png,.heic"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);width:100%;font-size:12px;cursor:pointer">
+        </div>
         <div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button class="btn btn-primary" onclick="agregarGasto('${sol.id}')">➕ Agregar al folio ${sol.id}</button>
         </div>
@@ -1761,7 +1766,7 @@ function renderMisComprobantes(c){
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Categoría</th><th>Tipo</th><th>Proveedor</th><th>UUID/Folio</th><th>Fecha</th><th>Monto</th><th></th></tr></thead>
+          <thead><tr><th>Categoría</th><th>Tipo</th><th>Proveedor</th><th>UUID/Folio</th><th>Fecha</th><th>Monto</th><th>Archivo</th><th></th></tr></thead>
           <tbody>
             ${gastos.length ? gastos.map((g,i)=>`
               <tr>
@@ -1771,6 +1776,9 @@ function renderMisComprobantes(c){
                 <td class="mono" style="font-size:11px;color:var(--text3)">${g.uuid ? g.uuid.slice(0,18)+'…' : '—'}</td>
                 <td>${fmtDate(g.fecha)}</td>
                 <td style="font-family:'DM Mono',monospace;font-weight:600">${fmtMXN(g.monto)}</td>
+                <td>
+                  ${g.archivoUrl ? `<a href="https://grupofazamx.sharepoint.com${g.archivoUrl}" target="_blank" style="font-size:11px;color:var(--blue)">📎 Ver</a>` : '—'}
+                </td>
                 <td><button class="btn btn-red" style="padding:3px 7px;font-size:11px" onclick="eliminarGasto('${sol.id}',${i})">✕</button></td>
               </tr>`).join('')
             : '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text2)">Sin comprobantes para este folio. Agrega gastos arriba.</td></tr>'}
@@ -1832,22 +1840,105 @@ function saveGastosSolicitud(solId, gastos){
   localStorage.setItem(`gastos_${solId}`, JSON.stringify(gastos));
 }
 
-function agregarGasto(solId){
-  const cat   = document.getElementById('cg-cat').value;
-  const tipo  = document.getElementById('cg-tipo').value;
-  const monto = document.getElementById('cg-monto').value;
-  const fecha = document.getElementById('cg-fecha').value;
-  const prov  = document.getElementById('cg-proveedor').value.trim();
-  const uuid  = document.getElementById('cg-uuid')?.value.trim() || '';
-  const desc  = document.getElementById('cg-desc').value.trim();
+// ── Subir archivo a biblioteca Viaticos_Comprobantes ─────────
+async function subirArchivoSP(archivo, folioId, categoria){
+  if(!SP_TOKEN || !archivo) return null;
+  try {
+    // Carpeta: Viaticos_Comprobantes/2026/VT-XXXXX
+    const año    = new Date().getFullYear();
+    const folder = `Viaticos_Comprobantes/${año}/${folioId}`;
+    const nombre = `${folioId}_${categoria.replace(/\s/g,'_')}_${Date.now()}${archivo.name.substring(archivo.name.lastIndexOf('.'))}`;
+
+    // Crear carpeta si no existe
+    const digestR = await fetch(`${SP_SITE}/_api/contextinfo`, {
+      method:'POST',
+      headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'Accept':'application/json;odata=nometadata', 'Content-Type':'application/json' }
+    });
+    const digest = (await digestR.json()).FormDigestValue;
+
+    await fetch(`${SP_SITE}/_api/web/folders`, {
+      method:'POST',
+      headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'Accept':'application/json;odata=nometadata',
+        'Content-Type':'application/json', 'X-RequestDigest':digest },
+      body: JSON.stringify({ '__metadata':{'type':'SP.Folder'}, 'ServerRelativeUrl':`/sites/PortalGrupoFaza/Viaticos_Comprobantes/${año}/${folioId}` })
+    }).catch(()=>{});
+
+    // Subir archivo
+    const buf = await archivo.arrayBuffer();
+    const upResp = await fetch(
+      `${SP_SITE}/_api/web/GetFolderByServerRelativeUrl('/sites/PortalGrupoFaza/${folder}')/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
+      { method:'POST', headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'X-RequestDigest':digest }, body: buf }
+    );
+    if(!upResp.ok) return null;
+    const upData = await upResp.json();
+    return upData.ServerRelativeUrl || null;
+  } catch(e){ console.error('subirArchivoSP:', e); return null; }
+}
+
+// ── Guardar gasto en SharePoint Viaticos_Gastos ──────────────
+async function spSaveGasto(solId, gasto){
+  if(!SP_TOKEN) return;
+  try {
+    const digestR = await fetch(`${SP_SITE}/_api/contextinfo`, {
+      method:'POST', headers:{ 'Authorization':`Bearer ${SP_TOKEN}`,
+        'Accept':'application/json;odata=nometadata', 'Content-Type':'application/json' }
+    });
+    const digest = (await digestR.json()).FormDigestValue;
+    await fetch(`${SP_SITE}/_api/web/lists/getbytitle('Viaticos_Gastos')/items`, {
+      method:'POST',
+      headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'Accept':'application/json;odata=nometadata',
+        'Content-Type':'application/json', 'X-RequestDigest':digest },
+      body: JSON.stringify({
+        Title:          `${solId}_${Date.now()}`,
+        FolioID:        solId,
+        EmailEmpleado:  USER.email,
+        Categoria:      gasto.categoria,
+        TipoComp:       gasto.tipo_comp,
+        Monto:          Number(gasto.monto),
+        FechaGasto:     gasto.fecha,
+        Proveedor:      gasto.proveedor || '',
+        UUID:           gasto.uuid || '',
+        Descripcion:    gasto.descripcion || '',
+        ArchivoUrl:     gasto.archivoUrl || ''
+      })
+    });
+  } catch(e){ console.error('spSaveGasto:', e); }
+}
+
+async function agregarGasto(solId){
+  const cat    = document.getElementById('cg-cat').value;
+  const tipo   = document.getElementById('cg-tipo').value;
+  const monto  = document.getElementById('cg-monto').value;
+  const fecha  = document.getElementById('cg-fecha').value;
+  const prov   = document.getElementById('cg-proveedor').value.trim();
+  const uuid   = document.getElementById('cg-uuid')?.value.trim() || '';
+  const desc   = document.getElementById('cg-desc').value.trim();
+  const fileEl = document.getElementById('cg-archivo');
+  const archivo = fileEl?.files?.[0] || null;
+
   if(!cat)  { toast('Selecciona la categoría', 'error'); return; }
   if(!tipo) { toast('Selecciona el tipo de comprobante', 'error'); return; }
   if(!monto || Number(monto)<=0) { toast('Ingresa un monto válido', 'error'); return; }
   if(!fecha){ toast('Selecciona la fecha del gasto', 'error'); return; }
+
+  showLoading('Guardando comprobante...');
+  let archivoUrl = '';
+  if(archivo){
+    toast('Subiendo archivo a SharePoint...', 'info');
+    archivoUrl = await subirArchivoSP(archivo, solId, cat) || '';
+  }
+
+  const nuevoGasto = { categoria:cat, tipo_comp:tipo, monto:Number(monto), fecha, proveedor:prov, uuid, descripcion:desc, archivoUrl };
   const gastos = getGastosSolicitud(solId);
-  gastos.push({ categoria:cat, tipo_comp:tipo, monto:Number(monto), fecha, proveedor:prov, uuid, descripcion:desc });
+  gastos.push(nuevoGasto);
   saveGastosSolicitud(solId, gastos);
-  toast('Gasto registrado', 'success');
+
+  // Guardar en SharePoint en paralelo (sin bloquear)
+  spSaveGasto(solId, nuevoGasto);
+
+  hideLoading();
+  if(archivoUrl) toast(`Gasto y archivo guardados ✓`, 'success');
+  else toast('Gasto registrado', 'success');
   const c = document.getElementById('content');
   renderMisComprobantes(c);
 }
@@ -2271,17 +2362,70 @@ async function marcarDescuentoAplicado(id){
   renderDescuentosNomina(document.getElementById('content'));
 }
 function renderMiSaldo(c){
-  const mine = allSolicitudes.filter(s=>s.email===USER.email && s.montoEntregado>0);
-  const totalEntregado = mine.reduce((a,s)=>a+Number(s.montoEntregado||0),0);
+  const mine           = allSolicitudes.filter(s => s.email === USER.email);
+  const conAnticipo    = mine.filter(s => Number(s.montoEntregado||0) > 0);
+  const totalEntregado = conAnticipo.reduce((a,s) => a + Number(s.montoEntregado||0), 0);
+  const totalComp      = conAnticipo.reduce((a,s) => a + getGastosSolicitud(s.id).reduce((b,g)=>b+Number(g.monto||0),0), 0);
+  const porComprobar   = Math.max(0, totalEntregado - totalComp);
+  const enViaje        = mine.filter(s => s.estado === 'en_viaje').length;
+  const vencidos       = mine.filter(s => s.estado === 'vencido_comprobacion').length;
+
   c.innerHTML = `
-    <div class="stats-grid">
-      <div class="stat-card stat-accent"><div class="stat-card-label">Total recibido</div><div class="stat-card-value" style="font-size:20px">${fmtMXN(totalEntregado)}</div></div>
-      <div class="stat-card stat-yellow"><div class="stat-card-label">Por comprobar</div><div class="stat-card-value" style="font-size:20px">${fmtMXN(totalEntregado)}</div><div class="stat-card-sub">Sube tus comprobantes (Fase 2)</div></div>
+    <div class="stats-grid" style="margin-bottom:16px">
+      <div class="stat-card stat-accent">
+        <div class="stat-card-label">Total recibido en anticipos</div>
+        <div class="stat-card-value" style="font-size:20px">${fmtMXN(totalEntregado)}</div>
+        <div class="stat-card-sub">${conAnticipo.length} folio${conAnticipo.length!==1?'s':''} con anticipo</div>
+      </div>
+      <div class="stat-card stat-blue">
+        <div class="stat-card-label">Total comprobado</div>
+        <div class="stat-card-value" style="font-size:20px">${fmtMXN(totalComp)}</div>
+        <div class="stat-card-sub">CFDI + tickets registrados</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid ${porComprobar>0?'var(--yellow)':'var(--green)'}">
+        <div class="stat-card-label">Pendiente por comprobar</div>
+        <div class="stat-card-value" style="font-size:20px;color:${porComprobar>0?'var(--yellow)':'var(--green)'}">${fmtMXN(porComprobar)}</div>
+        <div class="stat-card-sub">${porComprobar>0?`Tienes ${DIAS_COMPROBACION} días hábiles para reportar`:'Todo comprobado ✓'}</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid ${vencidos>0?'var(--red)':'var(--text3)'}">
+        <div class="stat-card-label">Viajes activos</div>
+        <div class="stat-card-value" style="color:${vencidos>0?'var(--red)':'inherit'}">${enViaje}</div>
+        <div class="stat-card-sub">${vencidos>0?`⚠️ ${vencidos} folio${vencidos>1?'s':''} vencido${vencidos>1?'s':''}`:'Sin alertas'}</div>
+      </div>
     </div>
-    <div class="card"><div class="card-header"><span class="card-title">Anticipos recibidos</span></div>
-    <div class="table-wrap"><table><thead><tr><th>Folio</th><th>Destino</th><th>Monto entregado</th><th>Referencia</th><th>Estado</th></tr></thead>
-    <tbody>${mine.length ? mine.map(s=>`<tr><td class="mono">${s.id}</td><td>${s.destino}</td><td style="font-family:'DM Mono',monospace">${fmtMXN(s.montoEntregado)}</td><td class="mono">${s.referenciaAnticipo||'—'}</td><td>${badge(s.estado)}</td></tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text2)">Sin anticipos recibidos</td></tr>'}</tbody>
-    </table></div></div>`;
+
+    ${vencidos>0?`<div class="alert alert-warn" style="margin-bottom:14px">⚠️ Tienes ${vencidos} folio${vencidos>1?'s':''} con comprobación vencida. Contacta a Administración.</div>`:''}
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Detalle por folio</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Folio</th><th>Destino</th><th>Anticipo</th><th>Comprobado</th><th>Pendiente</th><th>Referencia</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            ${conAnticipo.length ? conAnticipo.map(s=>{
+              const comp  = getGastosSolicitud(s.id).reduce((a,g)=>a+Number(g.monto||0),0);
+              const pend  = Math.max(0, Number(s.montoEntregado||0) - comp);
+              const saldo = Number(s.montoEntregado||0) - comp;
+              return `<tr>
+                <td class="mono" style="font-weight:600">${s.id}</td>
+                <td>${s.sucursal||s.destino}</td>
+                <td style="font-family:'DM Mono',monospace;color:var(--accent)">${fmtMXN(s.montoEntregado)}</td>
+                <td style="font-family:'DM Mono',monospace;color:var(--blue)">${fmtMXN(comp)}</td>
+                <td style="font-family:'DM Mono',monospace;color:${pend>0?'var(--yellow)':'var(--green)'};font-weight:600">${fmtMXN(pend)}</td>
+                <td class="mono" style="font-size:11px">${s.referenciaAnticipo||'—'}</td>
+                <td>${badge(s.estado)}</td>
+                <td>
+                  ${['en_viaje','pendiente_comprobacion'].includes(s.estado)?
+                    `<button class="btn btn-primary" style="font-size:11px;padding:4px 9px" onclick="navigateToComprobacion('${s.id}')">🧾 Comprobar</button>`
+                    :(saldo!==0?`<span style="font-size:11px;color:${saldo>0?'var(--green)':'var(--red)'}">
+                    ${saldo>0?'Reintegrar: ':'A tu favor: '}${fmtMXN(Math.abs(saldo))}</span>`:'<span style="font-size:11px;color:var(--green)">Cuadrado ✓</span>')}
+                </td>
+              </tr>`;
+            }).join('') : '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text2)">Sin anticipos recibidos</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 /* ═══════════════════════════════════════════════════════

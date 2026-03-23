@@ -283,6 +283,7 @@ async function msalLogin(){
   btn.textContent = 'Iniciando sesión...';
   status.textContent = '';
   try {
+    await msalApp.initialize();
     // Intenta silencioso primero (si ya hay sesión)
     let resp;
     const accounts = msalApp.getAllAccounts();
@@ -3260,16 +3261,16 @@ function guiaTab(id, el){
 // Inicializar MSAL al cargar la página
 window.addEventListener('load', async () => {
   initMSAL();
-  // Manejar redirect callback si viene de login
   try {
+    await msalApp.initialize();
     await msalApp.handleRedirectPromise();
-  } catch(e){ console.warn('Redirect:', e); }
-  // Si ya hay sesión activa, iniciar automáticamente
-  const accounts = msalApp.getAllAccounts();
-  if(accounts.length > 0){
-    document.getElementById('login-status').textContent = 'Recuperando sesión...';
-    await cargarUsuarioM365(accounts[0]);
-  }
+    // Si ya hay sesión activa, iniciar automáticamente
+    const accounts = msalApp.getAllAccounts();
+    if(accounts.length > 0){
+      document.getElementById('login-status').textContent = 'Recuperando sesión...';
+      await cargarUsuarioM365(accounts[0]);
+    }
+  } catch(e){ console.warn('Init MSAL:', e); }
 });
 </script>
 </body>

@@ -513,19 +513,19 @@ async function spGetSolicitudes(email, role){
   } catch(e){ console.error('spGetSolicitudes:', e); return []; }
 }
 
-// ─── ZONAS Y SUCURSALES (Comunicado Política Gastos de Viaje, Marzo 2026) ───
+// ─── ZONAS Y SUCURSALES (Actualizado) ───────────────────────
 const ZONAS = {
   z1: {
-    id:'z1', nombre:'Zona 1 — Durango Cercano',
-    descripcion:'Cuencamé / Nazas · ~150–200 km · Viaje en el día',
+    id:'z1', nombre:'Zona Durango',
+    descripcion:'Cuencamé / Nazas · ~150–200 km',
     color:'#3fb950', colorBg:'rgba(63,185,80,.1)', colorBorder:'rgba(63,185,80,.25)',
     km:'150–200 km', tiempo:'2–3 hrs',
     hospedajeGestionado: true,
     vueloGestionado: false,
     limites:{
-      alimDiaSinCFDI: 160,   // 20% del tope día completo (Art. 93 LISR)
+      alimDiaSinCFDI: 160,
       alimDiaTotal:   800,
-      alimMedioSinCFDI: 90,  // 20% del tope medio día
+      alimMedioSinCFDI: 90,
       alimMedioTotal:  450,
       transporteLocal: 300,
     },
@@ -535,28 +535,8 @@ const ZONAS = {
       'Si requiere pernocta: hospedaje gestionado por Asistente de Dirección.',
     ]
   },
-  z2: {
-    id:'z2', nombre:'Zona 2 — Durango Capital',
-    descripcion:'Durango ciudad y zona metropolitana · ~250–320 km · Pernocta probable',
-    color:'#388bfd', colorBg:'rgba(56,139,253,.1)', colorBorder:'rgba(56,139,253,.25)',
-    km:'250–320 km', tiempo:'3–4 hrs',
-    hospedajeGestionado: true,
-    vueloGestionado: false,
-    limites:{
-      alimDiaSinCFDI: 160,
-      alimDiaTotal:   800,
-      alimMedioSinCFDI: 90,
-      alimMedioTotal:  450,
-      transporteLocal: 400,
-    },
-    reglas:[
-      'Alimentos día completo: hasta $800 (máx. $160 sin factura — Art. 93 frac. XVII LISR).',
-      'Hospedaje gestionado por Asistente de Dirección — no incluir en anticipo.',
-      'Factura de hospedaje a nombre de razón social de Grupo Faza.',
-    ]
-  },
   z3: {
-    id:'z3', nombre:'Zona 3 — Zacatecas',
+    id:'z3', nombre:'Zona Zacatecas',
     descripcion:'Nieves, Zac. · ~250–300 km · Pernocta probable',
     color:'#d29922', colorBg:'rgba(210,153,34,.1)', colorBorder:'rgba(210,153,34,.25)',
     km:'250–300 km', tiempo:'3–4 hrs',
@@ -576,7 +556,7 @@ const ZONAS = {
     ]
   },
   z4: {
-    id:'z4', nombre:'Zona 4 — Chihuahua',
+    id:'z4', nombre:'Zona Chihuahua',
     descripcion:'Ciudad Chihuahua · ~500–560 km · Pernocta obligatoria',
     color:'#f85149', colorBg:'rgba(248,81,73,.1)', colorBorder:'rgba(248,81,73,.25)',
     km:'500–560 km', tiempo:'5–6 hrs en auto / vuelo disponible',
@@ -594,14 +574,34 @@ const ZONAS = {
       'El anticipo cubre ÚNICAMENTE: alimentación + transporte local.',
       'Taxi convencional requiere autorización especial de Dirección General.',
     ]
+  },
+  zx: {
+    id:'zx', nombre:'Otro Destino (Externo)',
+    descripcion:'Destino fuera de las zonas habituales · Requiere autorización especial',
+    color:'#a371f7', colorBg:'rgba(163,113,247,.1)', colorBorder:'rgba(163,113,247,.25)',
+    km:'Variable', tiempo:'Variable',
+    hospedajeGestionado: true,
+    vueloGestionado: true,
+    limites:{
+      alimDiaSinCFDI: 160,
+      alimDiaTotal:   800,
+      alimMedioSinCFDI: 90,
+      alimMedioTotal:  450,
+      transporteLocal: 500,
+    },
+    reglas:[
+      'Destino externo — requiere autorización expresa de Dirección General.',
+      'Hospedaje y vuelo gestionados por Asistente de Dirección.',
+      'Todos los gastos deben ir con CFDI a nombre de razón social de Grupo Faza.',
+    ]
   }
 };
 
 const SUCURSALES = {
-  z1: ['Cuencamé 1','Cuencamé 2','Nazas'],
-  z2: ['San José de Viñedo','Tienda','CRIT','Filadelfia','Parque Industrial','Puente Centenario','Santa Rita','6 de Enero'],
-  z3: ['Nieves'],
   z4: ['Santa Anita','Centauro','Nogales','Complejo Industrial','Vallarta','Tec Chihuahua'],
+  z1: ['Cuencamé 1','Cuencamé 2','Nazas'],
+  z3: ['Nieves'],
+  zx: ['Otro Destino (Externo)'],
 };
 
 // Mapa rápido: sucursal → zona
@@ -610,7 +610,7 @@ Object.entries(SUCURSALES).forEach(([z, lista]) => lista.forEach(s => SUCURSAL_Z
 
 // Catálogos generales
 const CENTROS_COSTO = ['Administración','Construcción y Mantenimiento','Contraloría','Dirección','Jurídico','Mercadotecnia y Publicidad','Operaciones Combustible','Operaciones Tiendas','Recursos Humanos','Tecnologías de la Información'];
-const PROYECTOS = ['Sin proyecto','Expansión Norte','Expansión Sur','ERP 2025','Capacitación','Infraestructura','Marketing'];
+const PROYECTOS = ['Sin proyecto','Visitas Técnicas','Trámite administrativo','Comerciales y de ventas','Ferias y Congresos','Formación y capacitación','Expansión de negocios'];
 const CATEGORIAS = ['Hospedaje','Alimentación','Transporte','Combustible','Representación','Otros'];
 const METODOS_PAGO = ['Transferencia SPEI','Depósito en efectivo','Cheque','Tarjeta corporativa'];
 

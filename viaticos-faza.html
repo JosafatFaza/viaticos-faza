@@ -94,8 +94,8 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 .btn-full { width: 100%; justify-content: center; padding: 12px; font-size: 15px; }
 
 /* ─── APP LAYOUT ────────────────────────────────────────── */
-#app { display: none; height: 100vh; overflow: hidden; }
-.layout { display: flex; height: 100vh; }
+#app { display: none; height: 100vh; height: 100svh; overflow: hidden; }
+.layout { display: flex; height: 100vh; height: 100svh; overflow: hidden; }
 
 /* SIDEBAR */
 .sidebar {
@@ -255,107 +255,98 @@ tr:hover td { background: rgba(255,255,255,.02); }
   .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; }
 }
 
-/* Tablet vertical (≤768px) — sidebar colapsable */
+/* Tablet vertical y móvil (≤768px) */
 @media (max-width: 768px) {
-  /* Sidebar se convierte en drawer deslizable */
-  .sidebar {
-    position: fixed; top: 0; left: -260px; width: 260px; min-width: 260px;
-    height: 100vh; z-index: 50;
-    transition: left .25s ease;
-    box-shadow: 4px 0 20px rgba(0,0,0,.4);
-  }
-  .sidebar.open { left: 0; }
+  /* App ocupa viewport completo */
+  #app { height: 100svh; height: 100vh; }
 
-  /* Overlay oscuro al abrir sidebar */
+  /* Layout en columna — main ocupa todo */
+  .layout { position: relative; }
+
+  /* Sidebar oculto por defecto fuera de pantalla */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: -280px !important;
+    width: 260px !important;
+    min-width: 260px !important;
+    height: 100vh !important;
+    height: 100svh !important;
+    z-index: 200 !important;
+    transition: left .25s ease !important;
+    box-shadow: none;
+  }
+  .sidebar.open {
+    left: 0 !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,.5) !important;
+  }
+
+  /* Main ocupa todo el ancho */
+  .main {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  /* Overlay */
   .sidebar-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
-    z-index: 49; backdrop-filter: blur(2px);
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 199;
   }
   .sidebar-overlay.active { display: block; }
 
-  /* Main ocupa todo el ancho */
-  .layout { flex-direction: column; }
-  .main { width: 100%; }
-
-  /* Topbar con botón hamburguesa */
-  .topbar { padding: 0 14px; gap: 8px; }
+  /* Topbar */
+  .topbar { padding: 0 12px; gap: 8px; height: 50px; min-height: 50px; }
   .topbar-title { font-size: 14px; }
   .topbar-subtitle { display: none; }
-
-  /* Botón hamburguesa visible */
   #btn-menu { display: flex !important; }
 
   /* Contenido */
-  .content { padding: 14px; }
+  .content { padding: 12px; }
 
-  /* Stats grid en 2 columnas */
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-  .stat-card-value { font-size: 20px; }
+  /* Stats 2 columnas */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat-card { padding: 12px; }
+  .stat-card-value { font-size: 18px; }
+  .stat-card-label { font-size: 10px; }
 
   /* Formularios en 1 columna */
   .form-row { grid-template-columns: 1fr; gap: 10px; }
   .form-row-3 { grid-template-columns: 1fr; gap: 10px; }
 
-  /* Tablas con scroll horizontal */
+  /* Tablas con scroll */
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { min-width: 600px; }
-  td, th { padding: 10px 10px; font-size: 12px; }
+  table { min-width: 540px; }
+  td, th { padding: 8px 10px; font-size: 12px; }
 
-  /* Fork grid en 1 columna */
+  /* Fork en columna */
   .fork { grid-template-columns: 1fr; }
 
   /* Login */
-  .login-card { width: 100%; max-width: 380px; padding: 28px 20px; margin: 16px; }
+  .login-card { width: calc(100% - 32px); max-width: 380px; padding: 24px 20px; }
 
-  /* Toast en ancho completo */
-  #toast-container { left: 14px; right: 14px; bottom: 14px; }
+  /* Toast */
+  #toast-container { left: 12px; right: 12px; bottom: 12px; }
   .toast { min-width: unset; }
-
-  /* Cards de roles en grid responsive */
-  .role-grid { grid-template-columns: 1fr 1fr !important; }
 }
 
-/* Móvil (≤480px) */
+/* Móvil pequeño (≤480px) */
 @media (max-width: 480px) {
-  /* Stats en 1 columna */
-  .stats-grid { grid-template-columns: 1fr; }
-
-  /* Tabs con scroll */
-  .tabs { overflow-x: auto; width: 100%; }
-
-  /* Botones más grandes para touch */
-  .btn { padding: 10px 14px; font-size: 13px; }
-  .btn-full { padding: 14px; font-size: 15px; }
-
-  /* Card header en columna */
-  .card-header { flex-wrap: wrap; gap: 8px; }
-  .card-header .btn { font-size: 12px; padding: 7px 12px; }
-
-  /* Topbar más compacto */
-  .topbar { height: 50px; min-height: 50px; padding: 0 10px; }
-  .topbar-title { font-size: 13px; }
-
-  /* Content más ajustado */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
   .content { padding: 10px; }
-
-  /* Stats 2 col en móvil pequeño */
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-card { padding: 12px; }
-  .stat-card-value { font-size: 18px; }
-  .stat-card-label { font-size: 10px; }
-
-  /* Roles en 1 columna */
-  .role-grid { grid-template-columns: 1fr !important; }
-
-  /* Modales */
-  .modal { width: 95vw !important; margin: 10px; }
-  .modal-body { padding: 14px 16px; }
+  .card-header { flex-wrap: wrap; gap: 8px; }
+  .modal { width: 96vw !important; margin: 8px; }
+  .modal-body { padding: 12px 14px; }
   .modal-footer { flex-wrap: wrap; }
-  .modal-footer .btn { flex: 1; justify-content: center; }
-
-  /* Filter row en columna */
-  .filter-row { flex-direction: column; align-items: stretch; }
+  .modal-footer .btn { flex: 1; justify-content: center; min-width: 100px; }
+  .filter-row { flex-direction: column; }
   .filter-row input, .filter-row select { width: 100%; }
+  .btn-full { padding: 14px; font-size: 15px; }
+  .topbar { padding: 0 8px; }
+  #topbar-date { display: none; }
 }
 @keyframes slideIn { from { opacity: 0; transform: translateX(20px) } to { opacity: 1; transform: none } }
 @keyframes spin    { to { transform: rotate(360deg) } }

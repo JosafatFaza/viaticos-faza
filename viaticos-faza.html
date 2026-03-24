@@ -384,15 +384,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
 @keyframes slideIn { from { opacity: 0; transform: translateX(20px) } to { opacity: 1; transform: none } }
 @keyframes spin    { to { transform: rotate(360deg) } }
 
-/* ─── RESPONSIVE ────────────────────────────────────────── */
-@media(max-width:768px){
-  .sidebar { width: 56px; min-width: 56px; }
-  .sidebar-logo-text, .sidebar-user-info, .nav-item span, .nav-section-title, .nav-badge { display: none; }
-  .nav-item { justify-content: center; }
-  .content { padding: 14px; }
-  .form-row, .form-row-3 { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-}
 </style>
 </head>
 <body>
@@ -855,13 +846,13 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
     <div class="sidebar-header">
       <div class="sidebar-logo">
         <div class="sidebar-logo-icon">✈️</div>
-        <div class="sidebar-logo-text">Viáticos<span>Grupo Faza</span></div>
+        <div class="sidebar-logo-text" style="color:#e6edf3">Viáticos<span style="color:#8b949e;display:block;font-size:11px;font-weight:400">Grupo Faza</span></div>
       </div>
       <div class="sidebar-user">
-        <div class="sidebar-avatar" id="sidebar-avatar">JG</div>
+        <div class="sidebar-avatar" id="sidebar-avatar" style="color:#fff">JG</div>
         <div class="sidebar-user-info">
-          <strong id="sidebar-name">—</strong>
-          <span id="sidebar-role-label">—</span>
+          <strong id="sidebar-name" style="color:#e6edf3;font-size:12px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</strong>
+          <span id="sidebar-role-label" style="color:#8b949e;font-size:11px">—</span>
         </div>
       </div>
     </div>
@@ -871,7 +862,7 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
     <div class="sidebar-footer">
       <!-- Selector de rol para pruebas — solo visible para josafat.ramirez@faza.com.mx -->
       <div id="dev-role-switcher" style="display:none;padding:8px 12px;border-top:1px solid var(--border);margin-bottom:4px">
-        <div style="font-size:10px;color:var(--yellow);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🧪 Modo prueba — cambiar rol</div>
+        <div style="font-size:10px;color:#d29922;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🧪 Modo prueba — cambiar rol</div>
         <select onchange="cambiarRolPrueba(this.value)"
           style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;outline:none">
           <option value="empleado">👤 Colaborador</option>
@@ -883,9 +874,9 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
           <option value="admin">⚙️ Admin sistema</option>
         </select>
       </div>
-      <div class="nav-item" onclick="logout()">
-        <span class="nav-icon">🚪</span>
-        <span>Cerrar sesión</span>
+      <div class="nav-item" onclick="logout()" style="display:flex;align-items:center;gap:9px;padding:10px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px">
+        <span style="font-size:16px;width:22px;text-align:center;display:inline-block">🚪</span>
+        <span style="color:#c9d1d9;font-size:13px">Cerrar sesión</span>
       </div>
     </div>
   </aside>

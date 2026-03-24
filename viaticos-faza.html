@@ -2129,10 +2129,10 @@ async function confirmarVoBoGerente(id){
   }
   // Guardar en SharePoint con los campos correctos
   await spUpdateEstado(id, {
-    Estado:          'comp_enviada_admon',
-    VoBoGerente:     USER.name,
-    FechaVoBo:       today(),
-    ComentarioVoBo:  comentario || ''
+    Estado:         'comp_enviada_admon',
+    VoBoGerente:    USER.name,
+    FechaVoBo:      today(),
+    ComentarioVoBo: comentario || ''
   });
   closeModal(); updateBadges();
   toast(`VoBo dado. Comprobación enviada a ${ADMIN_NAME}`, 'success');
@@ -2359,7 +2359,7 @@ async function confirmarDescuentoNomina(id){
     MotivoDescuento: motivo,
     MontoDescuento:  r.anticipo,
     CerradoPor:      ADMIN_NAME,
-    FechaCierre:     today()
+    FechaDescuento:  today()
   });
   closeModal(); updateBadges();
   toast(`Folio ${id} enviado a descuento de nómina. RH notificado.`, 'error');
@@ -2577,15 +2577,27 @@ function aprobar(id){
 
 async function confirmarAprobacion(id){
   const comentario = document.getElementById('comentario-aprobacion').value;
+  const esDirector = USER.role === 'director';
   const idx = allSolicitudes.findIndex(s=>s.id===id);
   if(idx>=0){
     allSolicitudes[idx].estado = 'pendiente_administracion';
-    if(USER.role==='director') allSolicitudes[idx].aprobadoDirector = USER.name;
+    if(esDirector) allSolicitudes[idx].aprobadoDirector = USER.name;
     else allSolicitudes[idx].aprobadoGerente = USER.name;
     allSolicitudes[idx].comentarioAprobacion = comentario;
     saveSolicitudLocal(allSolicitudes[idx]);
   }
-  await apiCall('updateEstado',{id, estado:'pendiente_administracion', comentario, autorizadoPor:USER.name, rol:USER.role});
+  const campos = {
+    Estado: 'pendiente_administracion',
+    ComentarioGerente: comentario || ''
+  };
+  if(esDirector){
+    campos.AprobadoDirector    = USER.name;
+    campos.FechaAprobDirector  = today();
+  } else {
+    campos.AprobadoGerente     = USER.name;
+    campos.FechaAprobGerente   = today();
+  }
+  await spUpdateEstado(id, campos);
   closeModal(); updateBadges();
   toast(`Solicitud aprobada y enviada a ${ADMIN_NAME} (Administración)`, 'success');
   renderAutorizaciones(document.getElementById('content'));
@@ -2623,7 +2635,11 @@ async function confirmarRechazo(id){
     allSolicitudes[idx].rechazadoPor = USER.name;
     saveSolicitudLocal(allSolicitudes[idx]);
   }
-  await apiCall('updateEstado',{id, estado:'rechazado', comentario:motivo, rechazadoPor:USER.name});
+  await spUpdateEstado(id, {
+    Estado:        'rechazado',
+    MotivoRechazo: motivo,
+    RechazadoPor:  USER.name
+  });
   closeModal(); updateBadges();
   toast('Solicitud rechazada — el colaborador será notificado', 'error');
   renderAutorizaciones(document.getElementById('content'));
@@ -2714,7 +2730,12 @@ async function confirmarValidacionAdmon(id){
     allSolicitudes[idx].comentarioAdmon = comentario;
     saveSolicitudLocal(allSolicitudes[idx]);
   }
-  await apiCall('updateEstado',{id, estado:'aprobado', comentario, validadoPor:ADMIN_NAME});
+  await spUpdateEstado(id, {
+    Estado:          'aprobado',
+    ValidadoAdmon:   ADMIN_NAME,
+    FechaValidAdmon: today(),
+    ComentarioAdmon: comentario || ''
+  });
   closeModal(); updateBadges();
   toast('Solicitud validada. RH notificado. Depósito liberado para Tesorería.', 'success');
   renderValidacionAdmon(document.getElementById('content'));
@@ -2917,18 +2938,40 @@ async function confirmarAnticipo(id){
   const metodo = document.getElementById('a-metodo').value;
   const ref    = document.getElementById('a-ref').value.trim();
   if(!monto||!ref){ toast('Completa monto y referencia', 'error'); return; }
+
+  // Calcular fecha límite: 5 días hábiles desde hoy
+  function addDiasHabiles(d, n){
+    const dt = new Date(d);
+    let added = 0;
+    while(added < n){
+      dt.setDate(dt.getDate()+1);
+      if(dt.getDay()!==0 && dt.getDay()!==6) added++;
+    }
+    return dt.toISOString().slice(0,10);
+  }
+  const sol = allSolicitudes.find(s=>s.id===id);
+  const fechaLimite = addDiasHabiles(sol?.fechaRegreso || today(), DIAS_COMPROBACION);
+
   const idx = allSolicitudes.findIndex(s=>s.id===id);
   if(idx>=0){
-    allSolicitudes[idx].montoEntregado = Number(monto);
-    allSolicitudes[idx].fechaAnticipo  = fecha;
-    allSolicitudes[idx].metodoAnticipo = metodo;
-    allSolicitudes[idx].referenciaAnticipo = ref;
-    allSolicitudes[idx].estado = 'en_viaje';
+    allSolicitudes[idx].montoEntregado      = Number(monto);
+    allSolicitudes[idx].fechaAnticipo       = fecha;
+    allSolicitudes[idx].metodoAnticipo      = metodo;
+    allSolicitudes[idx].referenciaAnticipo  = ref;
+    allSolicitudes[idx].estado              = 'en_viaje';
+    allSolicitudes[idx].fechaLimiteComp     = fechaLimite;
     saveSolicitudLocal(allSolicitudes[idx]);
   }
-  await apiCall('registrarAnticipo',{id, monto, fecha, metodo, ref, registradoPor:USER.name});
+  await spUpdateEstado(id, {
+    Estado:              'en_viaje',
+    MontoEntregado:      Number(monto),
+    FechaAnticipo:       fecha,
+    MetodoAnticipo:      metodo,
+    ReferenciaAnticipo:  ref,
+    FechaLimiteComp:     fechaLimite
+  });
   closeModal();
-  toast(`Anticipo de ${fmtMXN(monto)} registrado para ${allSolicitudes[idx]?.empleado}`, 'success');
+  toast(`Anticipo de ${fmtMXN(monto)} registrado. Límite comprobación: ${fmtDate(fechaLimite)}`, 'success');
   renderTesoreria(document.getElementById('content'));
 }
 

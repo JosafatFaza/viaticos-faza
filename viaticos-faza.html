@@ -248,105 +248,106 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 /* ─── RESPONSIVE ─────────────────────────────────────────── */
 
-/* Tablet horizontal y pantallas medianas (≤1024px) */
+/* Tablet horizontal (≤1024px) */
 @media (max-width: 1024px) {
   .sidebar { width: 200px; min-width: 200px; }
   .content { padding: 16px; }
-  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; }
 }
 
-/* Tablet vertical y móvil (≤768px) */
+/* Móvil y tablet vertical (≤768px) */
 @media (max-width: 768px) {
-  /* App ocupa viewport completo */
-  #app { height: 100svh; height: 100vh; }
 
-  /* Layout en columna — main ocupa todo */
-  .layout { position: relative; }
+  /* ── Layout base ── */
+  #app { height: 100svh; }
+  .layout { position: relative; overflow: hidden; }
 
-  /* Sidebar oculto por defecto fuera de pantalla */
+  /* ── Sidebar: completamente fuera de pantalla por defecto ── */
   .sidebar {
     position: fixed !important;
     top: 0 !important;
-    left: -280px !important;
-    width: 260px !important;
-    min-width: 260px !important;
-    height: 100vh !important;
+    left: -100% !important;
+    width: 75vw !important;
+    max-width: 280px !important;
+    min-width: unset !important;
     height: 100svh !important;
-    z-index: 200 !important;
-    transition: left .25s ease !important;
-    box-shadow: none;
+    z-index: 300 !important;
+    transition: left .28s cubic-bezier(.4,0,.2,1) !important;
+    overflow-y: auto !important;
   }
   .sidebar.open {
     left: 0 !important;
-    box-shadow: 4px 0 24px rgba(0,0,0,.5) !important;
+    box-shadow: 8px 0 32px rgba(0,0,0,.6) !important;
   }
 
-  /* Main ocupa todo el ancho */
-  .main {
-    width: 100% !important;
-    min-width: 0 !important;
-    flex: 1 !important;
-  }
-
-  /* Overlay */
+  /* ── Overlay ── */
   .sidebar-overlay {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.5);
-    z-index: 199;
+    background: rgba(0,0,0,.55);
+    z-index: 299;
+    -webkit-tap-highlight-color: transparent;
   }
-  .sidebar-overlay.active { display: block; }
+  .sidebar-overlay.active { display: block !important; }
 
-  /* Topbar */
-  .topbar { padding: 0 12px; gap: 8px; height: 50px; min-height: 50px; }
+  /* ── Main: ocupa TODO el ancho siempre ── */
+  .main {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* ── Topbar ── */
+  .topbar { padding: 0 10px; gap: 8px; height: 50px; min-height: 50px; }
   .topbar-title { font-size: 14px; }
   .topbar-subtitle { display: none; }
   #btn-menu { display: flex !important; }
+  #topbar-date { font-size: 11px; }
 
-  /* Contenido */
-  .content { padding: 12px; }
+  /* ── Contenido ── */
+  .content { padding: 12px; flex: 1; overflow-y: auto; }
 
-  /* Stats 2 columnas */
+  /* ── Stats ── */
   .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
   .stat-card { padding: 12px; }
   .stat-card-value { font-size: 18px; }
   .stat-card-label { font-size: 10px; }
+  .stat-card-sub { font-size: 10px; }
 
-  /* Formularios en 1 columna */
+  /* ── Formularios ── */
   .form-row { grid-template-columns: 1fr; gap: 10px; }
   .form-row-3 { grid-template-columns: 1fr; gap: 10px; }
 
-  /* Tablas con scroll */
+  /* ── Tablas ── */
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { min-width: 540px; }
+  table { min-width: 520px; }
   td, th { padding: 8px 10px; font-size: 12px; }
 
-  /* Fork en columna */
+  /* ── Fork ── */
   .fork { grid-template-columns: 1fr; }
 
-  /* Login */
-  .login-card { width: calc(100% - 32px); max-width: 380px; padding: 24px 20px; }
+  /* ── Login ── */
+  .login-card { width: calc(100vw - 32px); max-width: 380px; padding: 24px 20px; }
 
-  /* Toast */
-  #toast-container { left: 12px; right: 12px; bottom: 12px; }
+  /* ── Toast ── */
+  #toast-container { left: 10px; right: 10px; bottom: 10px; }
   .toast { min-width: unset; }
 }
 
 /* Móvil pequeño (≤480px) */
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
   .content { padding: 10px; }
+  #topbar-date { display: none; }
   .card-header { flex-wrap: wrap; gap: 8px; }
-  .modal { width: 96vw !important; margin: 8px; }
+  .modal { width: 96vw !important; }
   .modal-body { padding: 12px 14px; }
-  .modal-footer { flex-wrap: wrap; }
+  .modal-footer { flex-wrap: wrap; gap: 6px; }
   .modal-footer .btn { flex: 1; justify-content: center; min-width: 100px; }
   .filter-row { flex-direction: column; }
   .filter-row input, .filter-row select { width: 100%; }
-  .btn-full { padding: 14px; font-size: 15px; }
-  .topbar { padding: 0 8px; }
-  #topbar-date { display: none; }
 }
 @keyframes slideIn { from { opacity: 0; transform: translateX(20px) } to { opacity: 1; transform: none } }
 @keyframes spin    { to { transform: rotate(360deg) } }
@@ -3711,6 +3712,11 @@ function guiaTab(id, el){
 // Inicializar MSAL al cargar la página
 window.addEventListener('load', async () => {
   applyTheme();
+  // Asegurar sidebar cerrado en móvil al cargar
+  if(window.innerWidth <= 768){
+    const sb = document.getElementById('sidebar');
+    if(sb) sb.classList.remove('open');
+  }
   initMSAL();
   try {
     await msalApp.initialize();

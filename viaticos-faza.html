@@ -246,6 +246,120 @@ tr:hover td { background: rgba(255,255,255,.02); }
 @keyframes slideIn { from { opacity: 0; transform: translateX(20px) } to { opacity: 1; transform: none } }
 @keyframes spin    { to { transform: rotate(360deg) } }
 
+/* ─── RESPONSIVE ─────────────────────────────────────────── */
+
+/* Tablet horizontal y pantallas medianas (≤1024px) */
+@media (max-width: 1024px) {
+  .sidebar { width: 200px; min-width: 200px; }
+  .content { padding: 16px; }
+  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; }
+}
+
+/* Tablet vertical (≤768px) — sidebar colapsable */
+@media (max-width: 768px) {
+  /* Sidebar se convierte en drawer deslizable */
+  .sidebar {
+    position: fixed; top: 0; left: -260px; width: 260px; min-width: 260px;
+    height: 100vh; z-index: 50;
+    transition: left .25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,.4);
+  }
+  .sidebar.open { left: 0; }
+
+  /* Overlay oscuro al abrir sidebar */
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 49; backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.active { display: block; }
+
+  /* Main ocupa todo el ancho */
+  .layout { flex-direction: column; }
+  .main { width: 100%; }
+
+  /* Topbar con botón hamburguesa */
+  .topbar { padding: 0 14px; gap: 8px; }
+  .topbar-title { font-size: 14px; }
+  .topbar-subtitle { display: none; }
+
+  /* Botón hamburguesa visible */
+  #btn-menu { display: flex !important; }
+
+  /* Contenido */
+  .content { padding: 14px; }
+
+  /* Stats grid en 2 columnas */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .stat-card-value { font-size: 20px; }
+
+  /* Formularios en 1 columna */
+  .form-row { grid-template-columns: 1fr; gap: 10px; }
+  .form-row-3 { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Tablas con scroll horizontal */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 600px; }
+  td, th { padding: 10px 10px; font-size: 12px; }
+
+  /* Fork grid en 1 columna */
+  .fork { grid-template-columns: 1fr; }
+
+  /* Login */
+  .login-card { width: 100%; max-width: 380px; padding: 28px 20px; margin: 16px; }
+
+  /* Toast en ancho completo */
+  #toast-container { left: 14px; right: 14px; bottom: 14px; }
+  .toast { min-width: unset; }
+
+  /* Cards de roles en grid responsive */
+  .role-grid { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* Móvil (≤480px) */
+@media (max-width: 480px) {
+  /* Stats en 1 columna */
+  .stats-grid { grid-template-columns: 1fr; }
+
+  /* Tabs con scroll */
+  .tabs { overflow-x: auto; width: 100%; }
+
+  /* Botones más grandes para touch */
+  .btn { padding: 10px 14px; font-size: 13px; }
+  .btn-full { padding: 14px; font-size: 15px; }
+
+  /* Card header en columna */
+  .card-header { flex-wrap: wrap; gap: 8px; }
+  .card-header .btn { font-size: 12px; padding: 7px 12px; }
+
+  /* Topbar más compacto */
+  .topbar { height: 50px; min-height: 50px; padding: 0 10px; }
+  .topbar-title { font-size: 13px; }
+
+  /* Content más ajustado */
+  .content { padding: 10px; }
+
+  /* Stats 2 col en móvil pequeño */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { padding: 12px; }
+  .stat-card-value { font-size: 18px; }
+  .stat-card-label { font-size: 10px; }
+
+  /* Roles en 1 columna */
+  .role-grid { grid-template-columns: 1fr !important; }
+
+  /* Modales */
+  .modal { width: 95vw !important; margin: 10px; }
+  .modal-body { padding: 14px 16px; }
+  .modal-footer { flex-wrap: wrap; }
+  .modal-footer .btn { flex: 1; justify-content: center; }
+
+  /* Filter row en columna */
+  .filter-row { flex-direction: column; align-items: stretch; }
+  .filter-row input, .filter-row select { width: 100%; }
+}
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px) } to { opacity: 1; transform: none } }
+@keyframes spin    { to { transform: rotate(360deg) } }
+
 /* ─── RESPONSIVE ────────────────────────────────────────── */
 @media(max-width:768px){
   .sidebar { width: 56px; min-width: 56px; }
@@ -284,6 +398,18 @@ const GRUPOS_ROLES = {
 };
 
 // ─── MSAL INSTANCE ────────────────────────────────────────────
+function toggleSidebar(){
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('active');
+}
+
+function closeSidebar(){
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-overlay')?.classList.remove('active');
+}
+
 /* ═══════════════════════════════════════════════════════
    TEMA — modo oscuro / claro
 ═══════════════════════════════════════════════════════ */
@@ -693,12 +819,15 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
   </div>
 </div>
 
+<!-- Overlay para cerrar sidebar en móvil -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <!-- ─── APP ─────────────────────────────────────────────────────── -->
 <div id="app">
 <div class="layout">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo">
         <div class="sidebar-logo-icon">✈️</div>
@@ -740,6 +869,14 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
+      <!-- Botón hamburguesa — solo visible en móvil/tablet -->
+      <button id="btn-menu" onclick="toggleSidebar()" style="display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);flex-shrink:0" title="Menú">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <rect x="2" y="4" width="16" height="2" rx="1"/>
+          <rect x="2" y="9" width="16" height="2" rx="1"/>
+          <rect x="2" y="14" width="16" height="2" rx="1"/>
+        </svg>
+      </button>
       <div>
         <div class="topbar-title" id="topbar-title">Dashboard</div>
         <div class="topbar-subtitle" id="topbar-subtitle"></div>
@@ -1142,6 +1279,7 @@ function navigateTo(view){
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.view === view);
   });
+  closeSidebar(); // cerrar sidebar en móvil al navegar
   renderView(view);
 }
 

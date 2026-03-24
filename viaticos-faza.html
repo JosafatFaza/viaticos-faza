@@ -1274,9 +1274,22 @@ function buildSidebar(role){
       const el = document.createElement('div');
       el.className = 'nav-item';
       el.dataset.view = item.id;
-      el.style.cssText = 'display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;color:#8b949e;font-size:13px;font-weight:400;position:relative;margin-bottom:1px';
-      el.innerHTML = `<span class="nav-icon" style="font-size:15px;width:20px;text-align:center">${item.icon}</span><span style="color:inherit">${item.label}</span>` +
-        (item.badge ? `<span class="nav-badge" id="badge-${item.badge}" style="margin-left:auto;background:#ff6b00;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center">0</span>` : '');
+      el.style.cssText = 'display:flex;align-items:center;gap:9px;padding:10px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:400;position:relative;margin-bottom:2px;min-height:40px';
+      const labelSpan = document.createElement('span');
+      labelSpan.style.cssText = 'color:#c9d1d9;font-size:13px;flex:1;display:block';
+      labelSpan.textContent = item.label;
+      const iconSpan = document.createElement('span');
+      iconSpan.style.cssText = 'font-size:16px;width:22px;text-align:center;display:inline-block;flex-shrink:0';
+      iconSpan.textContent = item.icon;
+      el.appendChild(iconSpan);
+      el.appendChild(labelSpan);
+      if(item.badge){
+        const badge = document.createElement('span');
+        badge.id = `badge-${item.badge}`;
+        badge.style.cssText = 'margin-left:auto;background:#ff6b00;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center;display:inline-block';
+        badge.textContent = '0';
+        el.appendChild(badge);
+      }
       el.onclick = () => navigateTo(item.id);
       // Hover effects
       el.addEventListener('mouseenter', () => {
@@ -1321,13 +1334,13 @@ function navigateTo(view){
   document.querySelectorAll('.nav-item').forEach(el => {
     const isActive = el.dataset.view === view;
     el.classList.toggle('active', isActive);
-    // Inline styles para garantizar visibilidad en móvil
+    const lbl = el.querySelector('span:nth-child(2)');
     if(isActive){
       el.style.background = 'rgba(255,107,0,.12)';
-      el.style.color = '#ff6b00';
+      if(lbl) lbl.style.color = '#ff6b00';
     } else {
       el.style.background = 'transparent';
-      el.style.color = '#8b949e';
+      if(lbl) lbl.style.color = '#c9d1d9';
     }
   });
   closeSidebar();

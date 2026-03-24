@@ -1265,14 +1265,32 @@ function buildSidebar(role){
   menu.forEach(section => {
     const sec = document.createElement('div');
     sec.className = 'nav-section';
-    sec.innerHTML = `<div class="nav-section-title">${section.section}</div>`;
+    const title = document.createElement('div');
+    title.className = 'nav-section-title';
+    title.textContent = section.section;
+    title.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;padding:0 6px;margin-bottom:4px;color:#8b949e;display:block';
+    sec.appendChild(title);
     section.items.forEach(item => {
       const el = document.createElement('div');
       el.className = 'nav-item';
       el.dataset.view = item.id;
-      el.innerHTML = `<span class="nav-icon">${item.icon}</span><span>${item.label}</span>` +
-        (item.badge ? `<span class="nav-badge" id="badge-${item.badge}">0</span>` : '');
+      el.style.cssText = 'display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;color:#8b949e;font-size:13px;font-weight:400;position:relative;margin-bottom:1px';
+      el.innerHTML = `<span class="nav-icon" style="font-size:15px;width:20px;text-align:center">${item.icon}</span><span style="color:inherit">${item.label}</span>` +
+        (item.badge ? `<span class="nav-badge" id="badge-${item.badge}" style="margin-left:auto;background:#ff6b00;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center">0</span>` : '');
       el.onclick = () => navigateTo(item.id);
+      // Hover effects
+      el.addEventListener('mouseenter', () => {
+        if(!el.classList.contains('active')){
+          el.style.background = 'rgba(255,255,255,.06)';
+          el.style.color = '#e6edf3';
+        }
+      });
+      el.addEventListener('mouseleave', () => {
+        if(!el.classList.contains('active')){
+          el.style.background = 'transparent';
+          el.style.color = '#8b949e';
+        }
+      });
       sec.appendChild(el);
     });
     nav.appendChild(sec);
@@ -1301,9 +1319,18 @@ let currentView = '';
 function navigateTo(view){
   currentView = view;
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.view === view);
+    const isActive = el.dataset.view === view;
+    el.classList.toggle('active', isActive);
+    // Inline styles para garantizar visibilidad en móvil
+    if(isActive){
+      el.style.background = 'rgba(255,107,0,.12)';
+      el.style.color = '#ff6b00';
+    } else {
+      el.style.background = 'transparent';
+      el.style.color = '#8b949e';
+    }
   });
-  closeSidebar(); // cerrar sidebar en móvil al navegar
+  closeSidebar();
   renderView(view);
 }
 

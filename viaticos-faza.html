@@ -50,7 +50,12 @@ body.light-mode {
   --shadow:    0 4px 24px rgba(0,0,0,.1);
 }
 
-*, *::before, *::after { transition: background-color .2s ease, border-color .2s ease, color .15s ease; }
+/* Transición de tema solo en elementos que la necesitan */
+body, .sidebar, .main, .topbar, .content, .card, .stat-card, .modal,
+.login-card, .form-group input, .form-group select, .form-group textarea,
+.nav-item, .btn, .badge, .alert, table, td, th {
+  transition: background-color .2s ease, border-color .2s ease;
+}
 
 html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
 ::selection { background: var(--accent); color: #fff; }
@@ -97,22 +102,28 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 #app { display: none; height: 100vh; height: 100svh; overflow: hidden; }
 .layout { display: flex; height: 100vh; height: 100svh; overflow: hidden; }
 
-/* Sidebar oculto en móvil desde el inicio — antes de que cargue JS */
+/* Sidebar oculto en móvil desde el inicio */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); transition: transform .28s ease; }
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .28s ease;
+    background: var(--bg2) !important;
+  }
   .sidebar.open { transform: translateX(0); }
 
-  /* Forzar visibilidad de todos los elementos dentro del sidebar */
-  .sidebar,
-  .sidebar * { visibility: visible !important; opacity: 1 !important; }
-
-  .sidebar .nav-item { color: var(--text2) !important; }
-  .sidebar .nav-item:hover { background: var(--bg3) !important; color: var(--text) !important; }
-  .sidebar .nav-item.active { color: var(--accent) !important; }
-  .sidebar .nav-section-title { color: var(--text3) !important; }
-  .sidebar .sidebar-logo-text { color: var(--text) !important; }
-  .sidebar .sidebar-user-info strong { color: var(--text) !important; }
-  .sidebar .sidebar-user-info span { color: var(--text2) !important; }
+  /* Colores explícitos para elementos del nav en móvil */
+  .sidebar .nav-section-title { color: #6e7681 !important; }
+  .sidebar .nav-item { color: #8b949e !important; background: transparent !important; }
+  .sidebar .nav-item:hover { background: rgba(255,255,255,.06) !important; color: #e6edf3 !important; }
+  .sidebar .nav-item.active { color: #ff6b00 !important; background: rgba(255,107,0,.12) !important; }
+  .sidebar .nav-icon { opacity: 1 !important; }
+  .sidebar .nav-badge { background: #ff6b00 !important; color: #fff !important; }
+  .sidebar-logo-text { color: #e6edf3 !important; }
+  .sidebar-user-info strong { color: #e6edf3 !important; }
+  .sidebar-user-info span { color: #8b949e !important; }
+  body.light-mode .sidebar .nav-item { color: #57606a !important; }
+  body.light-mode .sidebar .nav-item:hover { color: #1a1f2e !important; }
+  body.light-mode .sidebar .nav-section-title { color: #8c959f !important; }
 }
 
 /* SIDEBAR */

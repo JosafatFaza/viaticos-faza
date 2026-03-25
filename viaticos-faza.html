@@ -1198,6 +1198,9 @@ const MENUS = {
       { id:'autorizaciones',           icon:'✅', label:'Por autorizar', badge:'director' },
       { id:'historial-autorizaciones', icon:'📁', label:'Historial' },
     ]},
+    { section:'Comprobación de gastos', items:[
+      { id:'revision-comprobaciones',  icon:'🧾', label:'VoBo comprobaciones Gerentes', badge:'comp-director' },
+    ]},
     SECCION_GUIA,
   ],
   administracion: [
@@ -1307,16 +1310,19 @@ function updateBadges(){
   const pendDir       = allSolicitudes.filter(s=>s.estado==='pendiente_director').length;
   const pendAdmon     = allSolicitudes.filter(s=>s.estado==='pendiente_administracion').length;
   const compGerente   = allSolicitudes.filter(s=>s.estado==='comp_enviada_gerente').length;
+  const compDirector  = allSolicitudes.filter(s=>s.estado==='comp_enviada_gerente' && 
+    ['gerente'].includes(allSolicitudes.find(x=>x.email===s.email)?.rol || 'empleado')).length;
   const compAdmon     = allSolicitudes.filter(s=>s.estado==='comp_enviada_admon').length;
   const vencidos      = allSolicitudes.filter(s=>s.estado==='vencido_comprobacion').length;
   const descuentos    = allSolicitudes.filter(s=>s.estado==='descuento_nomina').length;
   const set = (id, val) => { const el=document.getElementById('badge-'+id); if(el) el.textContent=val; };
-  set('gerente',     pendGerente);
-  set('director',    pendDir);
-  set('admon',       pendAdmon);
-  set('comp-gerente',compGerente);
-  set('comp-admon',  compAdmon);
-  set('rh',          vencidos + descuentos);
+  set('gerente',      pendGerente);
+  set('director',     pendDir);
+  set('admon',        pendAdmon);
+  set('comp-gerente', compGerente);
+  set('comp-director',compGerente); // Director ve las mismas comp_enviada_gerente de sus Gerentes
+  set('comp-admon',   compAdmon);
+  set('rh',           vencidos + descuentos);
 }
 
 let currentView = '';
@@ -1350,7 +1356,7 @@ const VIEW_TITLES = {
   'mi-saldo':                  ['Mi saldo y anticipos','Anticipos recibidos y por comprobar'],
   'autorizaciones':            ['Solicitudes por autorizar','Revisión y aprobación de viáticos'],
   'historial-autorizaciones':  ['Historial de autorizaciones','Solicitudes procesadas'],
-  'revision-comprobaciones':   ['Revisar comprobaciones','Gastos enviados por colaboradores para tu VoBo'],
+  'revision-comprobaciones':   ['Revisar comprobaciones','VoBo a comprobaciones de colaboradores y Gerentes'],
   'validacion':                ['Validación — Administración','Solicitudes aprobadas por Gerente/Director'],
   'validacion-comprobaciones': ['Validar comprobaciones — Administración','VoBo de Gerente recibido — decisión final'],
   'folios-cerrados':           ['Folios cerrados','Solicitudes completamente liquidadas'],
@@ -2313,14 +2319,22 @@ function compResumenHtml(s){
    (VoBo inicial antes de ir a Administración)
 ═══════════════════════════════════════════════════════ */
 function renderRevisionComprobaciones(c){
+  // Director ve comprobaciones de Gerentes, Gerente ve las de sus colaboradores
   const lista = allSolicitudes.filter(s => s.estado === 'comp_enviada_gerente');
+
+  // Texto contextual según el rol
+  const esDirector = USER.role === 'director';
+  const titulo = esDirector
+    ? 'VoBo a comprobaciones de Gerentes'
+    : 'Comprobaciones por revisar';
+  const instruccion = esDirector
+    ? `🧾 Tienes <strong>${lista.length}</strong> comprobación${lista.length!==1?'es':''} de Gerentes pendiente${lista.length!==1?'s':''} de tu VoBo. Al aprobar, pasan a <strong>${ADMIN_NAME}</strong> para decisión final.`
+    : `🧾 Tienes <strong>${lista.length}</strong> comprobación${lista.length!==1?'es':''} enviada${lista.length!==1?'s':''} por tus colaboradores. Revisa que los gastos cuadren con el anticipo y el objetivo del viaje. Al aprobar, pasa a <strong>${ADMIN_NAME}</strong> para decisión final.`;
+
   c.innerHTML = `
-    <div class="alert alert-info">
-      🧾 Tienes <strong>${lista.length}</strong> comprobación${lista.length!==1?'es':''} enviada${lista.length!==1?'s':''} por tus colaboradores.
-      Revisa que los gastos cuadren con el anticipo y el objetivo del viaje. Al aprobar, la comprobación pasa a <strong>${ADMIN_NAME}</strong> para decisión final.
-    </div>
+    <div class="alert alert-info">${instruccion}</div>
     <div class="card">
-      <div class="card-header"><span class="card-title">Comprobaciones por revisar</span></div>
+      <div class="card-header"><span class="card-title">${titulo}</span></div>
       ${lista.length ? lista.map(s=>{
         const r = resumenComp(s);
         return `
@@ -2340,8 +2354,9 @@ function renderRevisionComprobaciones(c){
             <button class="btn btn-red" style="font-size:12px" onclick="rechazarCompGerente('${s.id}')">✕ Regresar al colaborador</button>
           </div>
         </div>`;
-      }).join('') : '<div class="empty-state" style="padding:40px"><div class="icon">✅</div><h3>Sin comprobaciones pendientes</h3></div>'}
+      }).join('') : `<div class="empty-state" style="padding:40px"><div class="icon">✅</div><h3>Sin comprobaciones pendientes</h3></div>`}
     </div>`;
+}
 }
 
 function aprobarCompGerente(id){

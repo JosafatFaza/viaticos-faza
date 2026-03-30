@@ -694,8 +694,8 @@ async function spGetSolicitudes(email, role){
       montoTotal:       item.MontoTotal,
       solicitaAnticipo: item.SolicitaAnticipo ? 'si' : 'no',
       montoAnticipo:    item.MontoAnticipo,
-      hospedajeGestionado: item.HospedajeGestionado,
-      vueloGestionado:  item.VueloGestionado,
+      hospedajeGestionado: item.HospedajeGestionado === true || item.HospedajeGestionado === 'true',
+      vueloGestionado:     item.VueloGestionado === true || item.VueloGestionado === 'true',
       notas:            item.Notas,
       esSinCuenta:      !!(item.NombreColabSinCuenta),
       nombreColabSinCuenta: item.NombreColabSinCuenta || '',
@@ -1384,7 +1384,7 @@ function updateBadges(){
   set('comp-sin-cuenta', allSolicitudes.filter(s=>s.esSinCuenta && s.estado==='comp_enviada_gerente').length);
   // Jazmín — solicitudes aprobadas que requieren logística (hospedaje o vuelo) y no está completada
   set('logistica', allSolicitudes.filter(s=>
-    (s.hospedajeGestionado || s.vueloGestionado) &&
+    necesitaLogistica(s) &&
     ['aprobado','en_viaje','pendiente_comprobacion'].includes(s.estado) &&
     !s.logisticaCompletada
   ).length);
@@ -4235,16 +4235,28 @@ function abrirCompSinCuenta(solId){
    CAMBIO 5 — ROL JAZMÍN (ASISTENTE DE DIRECCIÓN)
    Gestión de hospedaje y vuelos
 ═══════════════════════════════════════════════════════ */
+// Un folio necesita logística si: hospedaje gestionado, vuelo gestionado,
+// O si la duración es más de 1 día completo (salida antes 8am + regreso otro día)
+function necesitaLogistica(s){
+  if(s.hospedajeGestionado || s.vueloGestionado) return true;
+  // Calcular días
+  if(s.fechaSalida && s.fechaRegreso){
+    const diff = Math.round((new Date(s.fechaRegreso+'T12:00:00') - new Date(s.fechaSalida+'T12:00:00')) / (1000*60*60*24));
+    if(diff >= 1) return true; // 2+ días = requiere hospedaje
+  }
+  return false;
+}
+
 function renderLogisticaPendiente(c){
   const lista = allSolicitudes.filter(s =>
-    (s.hospedajeGestionado || s.vueloGestionado) &&
+    necesitaLogistica(s) &&
     ['aprobado','en_viaje','pendiente_comprobacion'].includes(s.estado) &&
     !s.logisticaCompletada
   );
   c.innerHTML = `
     <div class="alert alert-info">
-      ✈️ Estas solicitudes requieren gestión de hospedaje y/o vuelo por tu parte.
-      Registra los datos de la reservación para que el colaborador sepa dónde hospedarse y qué vuelo tomar.
+      ✈️ Estas solicitudes requieren gestión de logística (hospedaje y/o vuelo).
+      Se incluyen todos los viajes de <strong>2 o más días</strong> y los que tienen zona con hospedaje/vuelo gestionado.
     </div>
     <div id="logistica-cards">
     ${lista.length ? lista.map(s=>`
@@ -4286,15 +4298,14 @@ function renderLogisticaPendiente(c){
         </div>
       </div>`).join('') :
       `<div class="empty-state"><div class="icon">✅</div><h3>Sin logística pendiente</h3>
-      <p>Cuando se apruebe una solicitud que requiera hotel o vuelo aparecerá aquí.</p></div>`
+      <p>Aparecerán aquí los viajes de 2+ días o que requieran hotel/vuelo gestionado, una vez que Tesorería libere el depósito.</p></div>`
     }
     </div>`;
 }
 
 function renderLogisticaHistorial(c){
   const lista = allSolicitudes.filter(s =>
-    (s.hospedajeGestionado || s.vueloGestionado) &&
-    s.logisticaCompletada
+    necesitaLogistica(s) && s.logisticaCompletada
   );
   c.innerHTML = `
     <div class="card">

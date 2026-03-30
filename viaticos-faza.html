@@ -1588,10 +1588,21 @@ function renderNuevaSolicitud(c){
 
         <div class="form-section-title">💸 Estimación de gastos</div>
         <div id="budget-avisos"></div>
+
+        <!-- Check de transporte empresa -->
+        <div id="check-transporte-empresa" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="cb-transporte-empresa" onchange="onTransporteEmpresaChange()"
+              style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+            <span>🚐 <strong>Transporte de la empresa</strong> — el colaborador viajará en vehículo de la empresa</span>
+          </label>
+          <p style="font-size:11px;color:var(--text2);margin-top:4px;padding-left:26px">Si viaja en vehículo propio o taxi, desmarca esta opción para habilitar el campo de transporte local.</p>
+        </div>
+
         <div class="budget-grid" id="budget-grid">
           <div class="budget-item" id="bi-hospedaje"><label>🏨 Hospedaje <span id="lbl-hospedaje" style="font-size:10px;color:var(--text3)"></span></label><input type="number" id="b-hospedaje" value="0" min="0" oninput="calcTotal()"></div>
           <div class="budget-item"><label>🍽️ Alimentación <span id="lbl-alim" style="font-size:10px;color:var(--text3)"></span></label><input type="number" id="b-alim" value="0" min="0" oninput="calcTotal()"></div>
-          <div class="budget-item"><label>🚗 Transporte local <span id="lbl-trans" style="font-size:10px;color:var(--text3)"></span></label><input type="number" id="b-trans" value="0" min="0" oninput="calcTotal()"></div>
+          <div class="budget-item" id="bi-trans"><label>🚗 Transporte local <span id="lbl-trans" style="font-size:10px;color:var(--text3)"></span></label><input type="number" id="b-trans" value="0" min="0" oninput="calcTotal()"></div>
           <div class="budget-item"><label>⛽ Combustible</label><input type="number" id="b-comb" value="0" min="0" oninput="calcTotal()"></div>
           <div class="budget-item"><label>📎 Otros</label><input type="number" id="b-otros" value="0" min="0" oninput="calcTotal()"></div>
         </div>
@@ -1722,6 +1733,20 @@ function onSucursalChange(){
 
   // Panel de logística
   renderLogisticaPanel(zona);
+
+  // Mostrar check de transporte empresa para zonas internas
+  const checkEmpresa = document.getElementById('check-transporte-empresa');
+  if(checkEmpresa){
+    const esZonaInterna = ['z1','z3','z4'].includes(zona.id);
+    checkEmpresa.style.display = esZonaInterna ? 'block' : 'none';
+    // Reset checkbox al cambiar de sucursal
+    const cb = document.getElementById('cb-transporte-empresa');
+    if(cb) cb.checked = false;
+    const biTrans = document.getElementById('bi-trans');
+    if(biTrans){ biTrans.style.opacity='1'; biTrans.style.pointerEvents='auto'; }
+  }
+
+  calcAutoEstimacion();
   calcTotal();
 }
 
@@ -1773,56 +1798,72 @@ function calcDuration(){
 
 // ── Cambio 6: Calcular estimación automática según zona y horario ──
 function calcAutoEstimacion(){
-  const suc       = document.getElementById('f-sucursal')?.value;
-  const horaSal   = document.getElementById('f-hora-salida')?.value  || '07:00';
-  const horaReg   = document.getElementById('f-hora-regreso')?.value || '18:00';
-  const zona      = suc && suc !== '__otro__' ? getZonaDeSucursal(suc) : null;
+  const suc     = document.getElementById('f-sucursal')?.value;
+  const horaSal = document.getElementById('f-hora-salida')?.value  || '07:00';
+  const horaReg = document.getElementById('f-hora-regreso')?.value || '18:00';
+  const zona    = suc && suc !== '__otro__' ? getZonaDeSucursal(suc) : null;
   if(!zona) return;
 
-  const dias       = getDias();
-  const L          = zona.limites;
-  const horaSalH   = parseInt(horaSal.split(':')[0]);
-  const horaRegH   = parseInt(horaReg.split(':')[0]);
+  const dias        = getDias();
+  const L           = zona.limites;
+  const horaSalH    = parseInt(horaSal.split(':')[0]);
+  const horaRegH    = parseInt(horaReg.split(':')[0]);
+  const usaEmpresa  = document.getElementById('cb-transporte-empresa')?.checked || false;
 
   // Regla: salida antes de 8am = día completo; después = medio día
   const primerDiaCompleto = horaSalH < 8;
   // Regla: regreso después de 14:00 = día completo; antes = medio día
   const ultimoDiaCompleto = horaRegH >= 14;
 
+  // ── Alimentación por día ──
   let totalAlim = 0;
   if(dias === 1){
-    // Solo un día
     totalAlim = primerDiaCompleto ? L.alimDiaTotal : L.alimMedioTotal;
   } else {
-    // Primer día
     totalAlim += primerDiaCompleto ? L.alimDiaTotal : L.alimMedioTotal;
-    // Días intermedios — siempre día completo
     if(dias > 2) totalAlim += L.alimDiaTotal * (dias - 2);
-    // Último día
     totalAlim += ultimoDiaCompleto ? L.alimDiaTotal : L.alimMedioTotal;
   }
 
-  const totalTrans = L.transporteLocal * dias;
+  // ── Transporte — solo si no usa vehículo empresa ──
+  const totalTrans = usaEmpresa ? 0 : L.transporteLocal * dias;
 
-  // Llenar campos automáticamente
+  // Llenar campos — siempre actualiza con la estimación
   const bAlim  = document.getElementById('b-alim');
   const bTrans = document.getElementById('b-trans');
-  if(bAlim  && Number(bAlim.value)  === 0) bAlim.value  = totalAlim;
-  if(bTrans && Number(bTrans.value) === 0) bTrans.value = totalTrans;
+  if(bAlim)  bAlim.value  = totalAlim;
+  if(bTrans) bTrans.value = totalTrans;
 
   // Mostrar alerta informativa
   const avisoEl = document.getElementById('budget-avisos');
   if(avisoEl){
-    const tipoDia = primerDiaCompleto ? 'día completo' : 'medio día';
+    const tipoPrimerDia  = primerDiaCompleto  ? 'día completo' : 'medio día';
+    const tipoUltimoDia  = ultimoDiaCompleto  ? 'día completo' : 'medio día';
     avisoEl.innerHTML = `<div class="alert alert-info" style="margin-bottom:8px">
-      📊 <strong>Estimación automática:</strong> Salida ${horaSalH < 8 ? 'antes' : 'después'} de las 8:00 a.m. → 
-      <strong>${tipoDia}</strong> en día de salida. 
-      ${dias} día${dias>1?'s':''} · Alimentación sugerida: ${fmtMXN(totalAlim)} · 
-      Transporte sugerido: ${fmtMXN(totalTrans)}
+      📊 <strong>Estimación automática — ${dias} día${dias>1?'s':''}:</strong>
+      Salida ${horaSalH < 8 ? 'antes' : 'después'} de las 8:00 a.m. → <strong>${tipoPrimerDia}</strong> en día 1.
+      ${dias > 1 ? `Regreso ${horaRegH >= 14 ? 'después' : 'antes'} de las 14:00 → <strong>${tipoUltimoDia}</strong> en el último día.` : ''}
+      ${dias > 2 ? `<strong>${dias-2} día${dias-2>1?'s':''} intermedio${dias-2>1?'s':''}</strong> = día completo.` : ''}
+      <br>
+      🍽️ Alimentación: <strong>${fmtMXN(totalAlim)}</strong>
+      ${usaEmpresa ? ' · 🚐 Transporte: <strong>Vehículo empresa</strong>' : ` · 🚗 Transporte local: <strong>${fmtMXN(totalTrans)}</strong>`}
       <span style="font-size:11px;color:var(--text2);display:block;margin-top:4px">Puedes ajustar los montos manualmente si es necesario.</span>
     </div>`;
   }
   calcTotal();
+}
+
+// ── Toggle transporte empresa ──
+function onTransporteEmpresaChange(){
+  const usaEmpresa = document.getElementById('cb-transporte-empresa')?.checked;
+  const biTrans    = document.getElementById('bi-trans');
+  const bTrans     = document.getElementById('b-trans');
+  if(biTrans){
+    biTrans.style.opacity = usaEmpresa ? '0.4' : '1';
+    biTrans.style.pointerEvents = usaEmpresa ? 'none' : 'auto';
+  }
+  if(bTrans && usaEmpresa) bTrans.value = 0;
+  calcAutoEstimacion();
 }
 function getDias(){
   const s = document.getElementById('f-salida')?.value;
@@ -1900,6 +1941,7 @@ function buildSolicitudObj(estado='pendiente_jefe'){
     solicitaAnticipo: 'si',
     montoAnticipo: total,
     notas: document.getElementById('f-notas')?.value.trim() || '',
+    transporteEmpresa: document.getElementById('cb-transporte-empresa')?.checked || false,
     archivosBitacora: '',
     estado, montoEntregado:0,
   };

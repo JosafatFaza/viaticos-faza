@@ -710,7 +710,7 @@ async function spGetSolicitudes(email, role){
       vueloNumero:      item.VueloNumero || '',
       vueloCosto:       item.VueloCosto || 0,
       vueloFecha:       item.VueloFecha?.split('T')[0] || '',
-      logisticaCompletada: item.LogisticaCompletada || false,
+      logisticaCompletada: item.LogisticaCompletada === true || item.LogisticaCompletada === 'true',
       horaSalida:       item.HoraSalida || '',
       horaRegreso:      item.HoraRegreso || '',
       archivosBitacora: item.ArchivosBitacora || '',
@@ -1386,7 +1386,7 @@ function updateBadges(){
   set('logistica', allSolicitudes.filter(s=>
     necesitaLogistica(s) &&
     ['aprobado','en_viaje','pendiente_comprobacion'].includes(s.estado) &&
-    !s.logisticaCompletada
+    !esLogisticaCompletada(s)
   ).length);
   set('rh',           vencidos + descuentos);
 }
@@ -4235,23 +4235,31 @@ function abrirCompSinCuenta(solId){
    CAMBIO 5 — ROL JAZMÍN (ASISTENTE DE DIRECCIÓN)
    Gestión de hospedaje y vuelos
 ═══════════════════════════════════════════════════════ */
-// Un folio necesita logística si: hospedaje gestionado, vuelo gestionado,
-// O si la duración es más de 1 día completo (salida antes 8am + regreso otro día)
+// Un folio necesita logística si tiene 2+ días o requiere hospedaje/vuelo gestionado
 function necesitaLogistica(s){
-  if(s.hospedajeGestionado || s.vueloGestionado) return true;
+  if(!s.fechaSalida || !s.fechaRegreso) return false;
   // Calcular días
-  if(s.fechaSalida && s.fechaRegreso){
-    const diff = Math.round((new Date(s.fechaRegreso+'T12:00:00') - new Date(s.fechaSalida+'T12:00:00')) / (1000*60*60*24));
-    if(diff >= 1) return true; // 2+ días = requiere hospedaje
-  }
+  const diff = Math.round(
+    (new Date(s.fechaRegreso+'T12:00:00') - new Date(s.fechaSalida+'T12:00:00'))
+    / (1000*60*60*24)
+  );
+  // 2+ días (diff >= 1 significa que hay al menos 1 noche)
+  if(diff >= 1) return true;
+  // O si la zona requiere hospedaje/vuelo gestionado
+  if(s.hospedajeGestionado === true || s.vueloGestionado === true) return true;
   return false;
+}
+
+function esLogisticaCompletada(s){
+  // true solo si explícitamente se marcó como completada
+  return s.logisticaCompletada === true;
 }
 
 function renderLogisticaPendiente(c){
   const lista = allSolicitudes.filter(s =>
     necesitaLogistica(s) &&
     ['aprobado','en_viaje','pendiente_comprobacion'].includes(s.estado) &&
-    !s.logisticaCompletada
+    !esLogisticaCompletada(s)
   );
   c.innerHTML = `
     <div class="alert alert-info">
@@ -4305,7 +4313,7 @@ function renderLogisticaPendiente(c){
 
 function renderLogisticaHistorial(c){
   const lista = allSolicitudes.filter(s =>
-    necesitaLogistica(s) && s.logisticaCompletada
+    necesitaLogistica(s) && esLogisticaCompletada(s)
   );
   c.innerHTML = `
     <div class="card">

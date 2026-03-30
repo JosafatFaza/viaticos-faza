@@ -694,6 +694,10 @@ async function spGetSolicitudes(email, role){
       hospedajeGestionado: item.HospedajeGestionado,
       vueloGestionado:  item.VueloGestionado,
       notas:            item.Notas,
+      horaSalida:       item.HoraSalida || '',
+      horaRegreso:      item.HoraRegreso || '',
+      archivosBitacora: item.ArchivosBitacora || '',
+      transporteEmpresa: item.TransporteEmpresa || false,
       estado:           item.Estado,
       aprobadoGerente:  item.AprobadoGerente,
       comentarioGerente:item.ComentarioGerente,
@@ -3011,9 +3015,32 @@ function aprobar(id){
           <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
         <div class="modal-body">
+          ${(()=>{
+            const s = allSolicitudes.find(x=>x.id===id);
+            if(!s) return '';
+            return `
+              <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">
+                  <div><span style="color:var(--text2);font-size:11px">Colaborador</span><div style="font-weight:600">${s.empleado}</div></div>
+                  <div><span style="color:var(--text2);font-size:11px">Destino</span><div style="font-weight:600">${s.sucursal||s.destino}</div></div>
+                  <div><span style="color:var(--text2);font-size:11px">Salida</span><div>${fmtDate(s.fechaSalida)} ${s.horaSalida ? '· '+s.horaSalida+' hrs' : ''}</div></div>
+                  <div><span style="color:var(--text2);font-size:11px">Regreso</span><div>${fmtDate(s.fechaRegreso)} ${s.horaRegreso ? '· '+s.horaRegreso+' hrs' : ''}</div></div>
+                  <div><span style="color:var(--text2);font-size:11px">Monto estimado</span><div style="font-weight:600;color:var(--accent)">${fmtMXN(s.montoTotal)}</div></div>
+                  <div><span style="color:var(--text2);font-size:11px">Objetivo</span><div>${s.objetivo||'—'}</div></div>
+                </div>
+                ${s.archivosBitacora ? `
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                  <a href="https://grupofazamx.sharepoint.com${s.archivosBitacora}" target="_blank"
+                    style="display:inline-flex;align-items:center;gap:8px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.25);color:var(--blue);padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none">
+                    📋 Ver bitácora del viaje →
+                  </a>
+                  <span style="font-size:11px;color:var(--text2);margin-left:8px">Revisa las actividades planeadas antes de aprobar</span>
+                </div>` : '<div style="margin-top:8px;font-size:11px;color:var(--text3)">Sin bitácora adjunta</div>'}
+              </div>`;
+          })()}
           <div class="alert alert-info">Al aprobar, la solicitud se enviará automáticamente a <strong>${ADMIN_NAME}</strong> para validación final.</div>
           <div class="form-group"><label>Comentario (opcional)</label>
-            <textarea id="comentario-aprobacion" rows="3" placeholder="Observaciones o condiciones para el colaborador..."></textarea>
+            <textarea id="comentario-aprobacion" rows="2" placeholder="Observaciones o condiciones para el colaborador..."></textarea>
           </div>
         </div>
         <div class="modal-footer">

@@ -1001,6 +1001,7 @@ function fmtMXN(n){
   return '$ ' + Number(n).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function fmtDate(d){ if(!d) return '—'; try{ const s = d.length === 10 ? d+'T12:00:00' : d; return new Date(s).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return d; } }
+function fmtEmpleado(s){ return `<strong>${s.empleado}</strong><br><span style="font-size:11px;color:var(--text2)">${s.email}</span>${s.esSinCuenta?`<br><span style="font-size:11px;color:var(--yellow)">👤 Para: ${s.nombreColabSinCuenta} (Emp. ${s.numEmpleado})</span>`:''}`;}
 function today(){ return new Date().toISOString().slice(0,10); }
 function genId(){ return 'VT-' + Date.now().toString(36).toUpperCase(); }
 function badge(status){ return `<span class="badge ${STATUS_CLASS[status]||'badge-draft'}">${STATUS_LABELS[status]||status}</span>`; }
@@ -2295,8 +2296,7 @@ function renderMisComprobantes(c){
             <select id="cg-tipo" onchange="onTipoCompChange()">
               <option value="">-- Tipo --</option>
               <option value="cfdi">CFDI / Factura electrónica</option>
-              <option value="ticket">Ticket / Nota (con foto)</option>
-              <option value="sin_cfdi">Sin comprobante (límite Art.93)</option>
+              <option value="ticket">Otros (ticket, nota, foto)</option>
             </select>
           </div>
         </div>
@@ -2538,15 +2538,30 @@ async function enviarComprobacion(solId){
   const gastos = getGastosSolicitud(solId);
   if(gastos.length === 0){ toast('Agrega al menos un comprobante antes de enviar', 'error'); return; }
   const idx = allSolicitudes.findIndex(s=>s.id===solId);
+  const sol = allSolicitudes[idx];
+
+  // Si es sin cuenta → el Gerente ya está comprobando = va directo a Administración
+  const nuevoEstado = (sol?.esSinCuenta && USER.role === 'gerente')
+    ? 'comp_enviada_admon'
+    : 'comp_enviada_gerente';
+
   if(idx>=0){
-    allSolicitudes[idx].estado  = 'comp_enviada_gerente';
-    allSolicitudes[idx].gastos  = gastos;
+    allSolicitudes[idx].estado       = nuevoEstado;
+    allSolicitudes[idx].gastos       = gastos;
     allSolicitudes[idx].fechaEnvioComp = today();
+    if(nuevoEstado === 'comp_enviada_admon'){
+      allSolicitudes[idx].voboGerente  = USER.name;
+      allSolicitudes[idx].fechaVoBo    = today();
+    }
     saveSolicitudLocal(allSolicitudes[idx]);
   }
-  await apiCall('enviarComprobacion',{id:solId, gastos, enviadoPor:USER.name});
+  await spUpdateEstado(solId, nuevoEstado === 'comp_enviada_admon'
+    ? { Estado:'comp_enviada_admon', VoBoGerente: USER.name, FechaVoBo: today() }
+    : { Estado:'comp_enviada_gerente' }
+  );
   updateBadges();
-  toast('Comprobación enviada al Gerente para revisión y VoBo', 'success');
+  const destino = nuevoEstado === 'comp_enviada_admon' ? `${ADMIN_NAME} (Administración)` : 'Gerente para VoBo';
+  toast(`Comprobación enviada a ${destino}`, 'success');
   navigateTo('mis-solicitudes');
 }
 
@@ -2948,7 +2963,9 @@ function renderDescuentosNomina(c){
         <tbody>
           ${lista.length ? lista.map(s=>`<tr>
             <td class="mono" style="font-weight:700;color:var(--red)">${s.id}</td>
-            <td><strong>${s.empleado}</strong><br><span style="font-size:11px;color:var(--text2)">${s.email}</span></td>
+            <td><strong>${s.empleado}</strong><br><span style="font-size:11px;color:var(--text2)">${s.email}</span>
+            ${s.esSinCuenta?`<br><span style="font-size:11px;color:var(--yellow)">👤 Para: ${s.nombreColabSinCuenta} (Emp. ${s.numEmpleado})</span>`:''}
+            </td>
             <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--red)">${fmtMXN(s.montoDescuento||s.montoEntregado)}</td>
             <td style="font-size:12px;max-width:200px">${s.motivoDescuento||'—'}</td>
             <td style="font-size:12px;color:var(--text2)">${s.descuentoPor||ADMIN_NAME}</td>

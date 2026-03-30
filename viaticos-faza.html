@@ -2020,7 +2020,11 @@ async function subirBitacoraSP(archivo, folioId){
     const buf = await archivo.arrayBuffer();
     const upResp = await fetch(
       `${SP_SITE}/_api/web/lists(guid'd83d37f2-1e6c-4b0a-98d1-44bf2da2ef73')/RootFolder/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
-      { method:'POST', headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'X-RequestDigest':digest }, body: buf }
+      { method:'POST', headers:{
+        'Authorization':`Bearer ${SP_TOKEN}`,
+        'Accept':'application/json;odata=nometadata',
+        'X-RequestDigest':digest
+      }, body: buf }
     );
 
     if(!upResp.ok){
@@ -2030,22 +2034,33 @@ async function subirBitacoraSP(archivo, folioId){
     }
 
     const upData = await upResp.json();
-    console.log('subirBitacoraSP OK:', upData.ServerRelativeUrl);
+    const serverUrl = upData.ServerRelativeUrl || null;
+    console.log('subirBitacoraSP OK:', serverUrl);
 
-    // Actualizar columnas FolioID y EmailEmpleado en el archivo subido
+    // Actualizar columnas FolioID y EmailEmpleado (best-effort, no bloquea)
     try {
-      const fileId = upData.ListItemAllFields?.Id || upData.UniqueId;
-      if(fileId){
-        const d2 = await (await fetch(`${SP_SITE}/_api/contextinfo`,{method:'POST',headers:{'Authorization':`Bearer ${SP_TOKEN}`,'Accept':'application/json;odata=nometadata','Content-Type':'application/json'}})).json();
-        await fetch(`${SP_SITE}/_api/web/lists(guid'd83d37f2-1e6c-4b0a-98d1-44bf2da2ef73')/items(${fileId})`,{
-          method:'PATCH',
-          headers:{'Authorization':`Bearer ${SP_TOKEN}`,'Accept':'application/json;odata=nometadata','Content-Type':'application/json;odata=nometadata','X-RequestDigest':d2.FormDigestValue,'IF-MATCH':'*','X-HTTP-Method':'MERGE'},
+      const itemUrl = upData.ListItemAllFields?.__deferred?.uri || null;
+      if(itemUrl){
+        const d2 = await (await fetch(`${SP_SITE}/_api/contextinfo`,{
+          method:'POST',
+          headers:{'Authorization':`Bearer ${SP_TOKEN}`,'Accept':'application/json;odata=nometadata','Content-Type':'application/json'}
+        })).json();
+        await fetch(itemUrl, {
+          method:'POST',
+          headers:{
+            'Authorization':`Bearer ${SP_TOKEN}`,
+            'Accept':'application/json;odata=nometadata',
+            'Content-Type':'application/json;odata=nometadata',
+            'X-RequestDigest': d2.FormDigestValue,
+            'IF-MATCH':'*',
+            'X-HTTP-Method':'MERGE'
+          },
           body: JSON.stringify({ FolioID: folioId, EmailEmpleado: USER.email })
         });
       }
-    } catch(e){ console.warn('Metadata update skip:', e); }
+    } catch(e){ console.warn('Metadata bitácora skip:', e.message); }
 
-    return upData.ServerRelativeUrl || null;
+    return serverUrl;
 
   } catch(e){
     console.error('subirBitacoraSP exception:', e);

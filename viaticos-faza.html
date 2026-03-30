@@ -2423,37 +2423,58 @@ function saveGastosSolicitud(solId, gastos){
   localStorage.setItem(`gastos_${solId}`, JSON.stringify(gastos));
 }
 
+// Cargar gastos desde SharePoint y guardar en localStorage para que todos los roles los vean
+async function cargarGastosDeSP(solId){
+  if(!SP_TOKEN) return;
+  try {
+    const r = await spGet(`web/lists/getbytitle('Viaticos_Gastos')/items?$filter=FolioID eq '${solId}'&$orderby=Id asc&$top=100`);
+    if(!r.value || r.value.length === 0) return;
+    const gastos = r.value.map(item => ({
+      categoria:   item.Categoria  || '',
+      tipo_comp:   item.TipoComp   || 'cfdi',
+      monto:       Number(item.Monto || 0),
+      fecha:       item.FechaGasto?.split('T')[0] || '',
+      proveedor:   item.Proveedor  || '',
+      uuid:        item.UUID       || '',
+      descripcion: item.Descripcion|| '',
+      archivoUrl:  item.ArchivoUrl || ''
+    }));
+    saveGastosSolicitud(solId, gastos);
+  } catch(e){ console.warn('cargarGastosDeSP:', e); }
+}
+
 // ── Subir archivo a biblioteca Viaticos_Comprobantes ─────────
+// GUID: 77dfdcf2-91f0-45fa-87ea-0e3b01edf869
 async function subirArchivoSP(archivo, folioId, categoria){
   if(!SP_TOKEN || !archivo) return null;
   try {
-    // Carpeta: Viaticos_Comprobantes/2026/VT-XXXXX
-    const año    = new Date().getFullYear();
-    const folder = `Viaticos_Comprobantes/${año}/${folioId}`;
-    const nombre = `${folioId}_${categoria.replace(/\s/g,'_')}_${Date.now()}${archivo.name.substring(archivo.name.lastIndexOf('.'))}`;
+    const nombre  = `${folioId}_${categoria.replace(/\s/g,'_')}_${Date.now()}${archivo.name.substring(archivo.name.lastIndexOf('.'))}`;
 
-    // Crear carpeta si no existe
+    // Digest
     const digestR = await fetch(`${SP_SITE}/_api/contextinfo`, {
       method:'POST',
       headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'Accept':'application/json;odata=nometadata', 'Content-Type':'application/json' }
     });
     const digest = (await digestR.json()).FormDigestValue;
+    if(!digest) return null;
 
-    await fetch(`${SP_SITE}/_api/web/folders`, {
-      method:'POST',
-      headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'Accept':'application/json;odata=nometadata',
-        'Content-Type':'application/json', 'X-RequestDigest':digest },
-      body: JSON.stringify({ '__metadata':{'type':'SP.Folder'}, 'ServerRelativeUrl':`/sites/PortalGrupoFaza/Viaticos_Comprobantes/${año}/${folioId}` })
-    }).catch(()=>{});
-
-    // Subir archivo
+    // Subir directo a la raíz usando GUID de la biblioteca
     const buf = await archivo.arrayBuffer();
     const upResp = await fetch(
-      `${SP_SITE}/_api/web/GetFolderByServerRelativeUrl('/sites/PortalGrupoFaza/${folder}')/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
-      { method:'POST', headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'X-RequestDigest':digest }, body: buf }
+      `${SP_SITE}/_api/web/lists(guid'77dfdcf2-91f0-45fa-87ea-0e3b01edf869')/RootFolder/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
+      { method:'POST', headers:{
+        'Authorization':`Bearer ${SP_TOKEN}`,
+        'Accept':'application/json;odata=nometadata',
+        'X-RequestDigest':digest
+      }, body: buf }
     );
-    if(!upResp.ok) return null;
+    if(!upResp.ok){
+      const err = await upResp.text();
+      console.error('subirArchivoSP error:', upResp.status, err);
+      return null;
+    }
     const upData = await upResp.json();
+    console.log('subirArchivoSP OK:', upData.ServerRelativeUrl);
     return upData.ServerRelativeUrl || null;
   } catch(e){ console.error('subirArchivoSP:', e); return null; }
 }
@@ -2599,8 +2620,11 @@ function compResumenHtml(s){
    VISTA: REVISIÓN COMPROBACIONES — Gerente
    (VoBo inicial antes de ir a Administración)
 ═══════════════════════════════════════════════════════ */
-function renderRevisionComprobaciones(c){
-  // Director ve comprobaciones de Gerentes, Gerente ve las de sus colaboradores
+async function renderRevisionComprobaciones(c){
+  // Cargar gastos de SP para todos los folios pendientes
+  const pendientes = allSolicitudes.filter(s => s.estado === 'comp_enviada_gerente');
+  await Promise.all(pendientes.map(s => cargarGastosDeSP(s.id)));
+
   const lista = allSolicitudes.filter(s => s.estado === 'comp_enviada_gerente');
 
   // Texto contextual según el rol
@@ -2727,31 +2751,33 @@ async function confirmarRechazoCompGerente(id){
 }
 
 // Modal de detalle de comprobantes
-function verDetalleComp(id){
+async function verDetalleComp(id){
   const s = allSolicitudes.find(x=>x.id===id);
   if(!s) return;
+  // Cargar desde SP por si acaso
+  await cargarGastosDeSP(id);
   const gastos = getGastosSolicitud(id);
   document.body.insertAdjacentHTML('beforeend',`
     <div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="width:580px">
+      <div class="modal" style="width:620px">
         <div class="modal-header">
           <div><div class="modal-title">🧾 Comprobantes — ${s.id}</div>
-            <div class="modal-subtitle">${s.empleado} · ${s.sucursal||s.destino} · ${fmtDate(s.fechaSalida)}–${fmtDate(s.fechaRegreso)}</div></div>
+            <div class="modal-subtitle">${s.esSinCuenta?`${s.nombreColabSinCuenta} (Emp. ${s.numEmpleado}) · via ${s.empleado}`:s.empleado} · ${s.sucursal||s.destino} · ${fmtDate(s.fechaSalida)}–${fmtDate(s.fechaRegreso)}</div></div>
           <button class="modal-close" onclick="closeModal()">✕</button>
         </div>
         <div class="modal-body">
           ${compResumenHtml(s)}
           <div class="table-wrap" style="margin-top:12px">
-            <table><thead><tr><th>Categoría</th><th>Tipo</th><th>Proveedor</th><th>UUID</th><th>Fecha</th><th>Monto</th></tr></thead>
+            <table><thead><tr><th>Categoría</th><th>Tipo</th><th>Proveedor</th><th>Fecha</th><th>Monto</th><th>Archivo</th></tr></thead>
             <tbody>
               ${gastos.length ? gastos.map(g=>`<tr>
                 <td>${g.categoria}</td>
-                <td>${{cfdi:'<span class="badge badge-approved" style="font-size:10px">CFDI</span>',ticket:'<span class="badge badge-pending" style="font-size:10px">Ticket</span>',sin_cfdi:'<span class="badge badge-draft" style="font-size:10px">Sin comp.</span>'}[g.tipo_comp]}</td>
+                <td>${{cfdi:'<span class="badge badge-approved" style="font-size:10px">CFDI</span>',ticket:'<span class="badge badge-pending" style="font-size:10px">Otros</span>',sin_cfdi:'<span class="badge badge-draft" style="font-size:10px">Sin comp.</span>'}[g.tipo_comp]||g.tipo_comp}</td>
                 <td style="font-size:12px">${g.proveedor||'—'}</td>
-                <td class="mono" style="font-size:10px">${g.uuid?g.uuid.slice(0,12)+'…':'—'}</td>
                 <td>${fmtDate(g.fecha)}</td>
                 <td style="font-family:'DM Mono',monospace;font-weight:600">${fmtMXN(g.monto)}</td>
-              </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text2)">Sin registros</td></tr>'}
+                <td>${g.archivoUrl?`<a href="${g.archivoUrl.startsWith('http')?g.archivoUrl:'https://grupofazamx.sharepoint.com'+g.archivoUrl}" target="_blank" style="color:var(--blue);font-size:12px">📎 Ver</a>`:'—'}</td>
+              </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text2)">Sin registros cargados</td></tr>'}
             </tbody></table>
           </div>
         </div>
@@ -2764,7 +2790,10 @@ function verDetalleComp(id){
    VISTA: VALIDACIÓN COMPROBACIONES — Administración (Luis Gallardo)
    Decisión final: Cerrar folio limpio O mandar a descuento nómina
 ═══════════════════════════════════════════════════════ */
-function renderValidacionComprobacionesAdmon(c){
+async function renderValidacionComprobacionesAdmon(c){
+  // Cargar gastos de SP para todos los folios pendientes de admon
+  const pendientes = allSolicitudes.filter(s => s.estado === 'comp_enviada_admon');
+  await Promise.all(pendientes.map(s => cargarGastosDeSP(s.id)));
   const lista = allSolicitudes.filter(s => s.estado === 'comp_enviada_admon');
   c.innerHTML = `
     <div class="alert alert-info">

@@ -3765,10 +3765,13 @@ function renderSolicitudSinCuenta(c){
         </div>
 
         <div id="sc-zona-card" style="display:none;margin-bottom:16px;border-radius:10px;padding:14px 16px;border:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-            <span id="sc-zona-badge" class="badge"></span>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span id="sc-zona-badge" class="badge" style="font-size:12px"></span>
             <span id="sc-zona-nombre" style="font-size:13px;font-weight:600"></span>
+            <span id="sc-zona-km" style="font-size:12px;color:var(--text2);margin-left:auto"></span>
           </div>
+          <div id="sc-zona-limites-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px"></div>
+          <div id="sc-zona-avisos" style="display:flex;flex-direction:column;gap:5px"></div>
         </div>
 
         <div class="form-row-3">
@@ -3820,12 +3823,21 @@ function renderSolicitudSinCuenta(c){
 
         <div class="form-section-title">📝 Objetivo del viaje</div>
         <div class="form-group">
-          <label>Objetivo del viaje *</label>
+          <label>Objetivo del viaje * <span style="font-size:11px;color:var(--text2);font-weight:400">(título de la bitácora)</span></label>
           <textarea id="sc-objetivo" rows="2" placeholder="Descripción del propósito del viaje..."></textarea>
         </div>
         <div class="form-group">
           <label>Notas adicionales</label>
           <textarea id="sc-notas" rows="2" placeholder="Observaciones..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>📋 Bitácora de actividades <span style="color:var(--text3);font-size:11px">(archivo .xlsx — opcional pero recomendado)</span></label>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <input type="file" id="sc-bitacora" accept=".xlsx,.xls"
+              style="flex:1;min-width:0;background:transparent;border:none;color:var(--text);font-size:12px;cursor:pointer">
+            <span style="font-size:11px;color:var(--text2)">Formato: Excel (.xlsx)</span>
+          </div>
+          <div id="sc-bitacora-status" style="font-size:11px;color:var(--text2);margin-top:4px"></div>
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
@@ -3839,24 +3851,71 @@ function renderSolicitudSinCuenta(c){
 function onSucursalChangeSC(){
   const suc  = document.getElementById('sc-sucursal').value;
   const zona = suc && suc!=='__otro__' ? getZonaDeSucursal(suc) : null;
-  const card = document.getElementById('sc-zona-card');
+  const card  = document.getElementById('sc-zona-card');
   const checkT = document.getElementById('sc-check-transporte');
+
   if(zona){
-    card.style.display='block';
+    card.style.display = 'block';
     card.style.borderColor = zona.color;
+    card.style.background = zona.colorBg;
+
     document.getElementById('sc-zona-badge').textContent = zona.nombre;
-    document.getElementById('sc-zona-badge').style.cssText = `background:${zona.colorBg};color:${zona.color};border:1px solid ${zona.colorBorder}`;
-    document.getElementById('sc-zona-nombre').textContent = zona.km + ' · ' + zona.tiempo;
-    // Hospedaje gestionado
+    document.getElementById('sc-zona-badge').style.cssText = `background:${zona.colorBg};color:${zona.color};border:1px solid ${zona.colorBorder};font-size:12px`;
+    document.getElementById('sc-zona-nombre').textContent = zona.nombre;
+    document.getElementById('sc-zona-km').textContent = zona.km + ' · ' + zona.tiempo;
+
+    const L = zona.limites;
+    document.getElementById('sc-zona-limites-grid').innerHTML = `
+      <div style="background:var(--bg2);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Alim. día completo</div>
+        <div style="font-size:15px;font-weight:700">$${L.alimDiaTotal.toLocaleString('es-MX')}</div>
+        <div style="font-size:11px;color:var(--text2)">Máx. $${L.alimDiaSinCFDI} sin factura (Art.93)</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Alim. medio día</div>
+        <div style="font-size:15px;font-weight:700">$${L.alimMedioTotal.toLocaleString('es-MX')}</div>
+        <div style="font-size:11px;color:var(--text2)">Máx. $${L.alimMedioSinCFDI} sin factura</div>
+      </div>
+      <div style="background:rgba(56,139,253,.08);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Hospedaje</div>
+        <div style="font-size:13px;font-weight:600;color:var(--blue)">Asistente de Dirección</div>
+        <div style="font-size:11px;color:var(--text2)">Factura directa a empresa</div>
+      </div>
+      ${zona.vueloGestionado?`
+      <div style="background:rgba(56,139,253,.08);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Vuelos</div>
+        <div style="font-size:13px;font-weight:600;color:var(--blue)">Asistente de Dirección</div>
+      </div>`:''}
+      <div style="background:var(--bg2);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Transporte local / día</div>
+        <div style="font-size:15px;font-weight:700">$${L.transporteLocal.toLocaleString('es-MX')}</div>
+        <div style="font-size:11px;color:var(--text2)">Uber / DiDi / InDriver</div>
+      </div>`;
+
+    document.getElementById('sc-zona-avisos').innerHTML = zona.reglas.map(r=>
+      `<div style="font-size:12px;color:var(--text2);display:flex;gap:6px"><span style="color:${zona.color}">▸</span>${r}</div>`
+    ).join('');
+
+    // Hospedaje gestionado → deshabilitar campo
     const biH = document.getElementById('sc-bi-hospedaje');
-    if(zona.hospedajeGestionado){ biH.style.opacity='0.4'; biH.style.pointerEvents='none'; document.getElementById('sc-b-hospedaje').value=0; }
-    else { biH.style.opacity='1'; biH.style.pointerEvents='auto'; }
-    // Check transporte
-    if(checkT) checkT.style.display = ['z1','z3','z4'].includes(zona.id) ? 'block' : 'none';
+    if(zona.hospedajeGestionado){
+      biH.style.opacity='0.4'; biH.style.pointerEvents='none';
+      document.getElementById('sc-b-hospedaje').value=0;
+    } else {
+      biH.style.opacity='1'; biH.style.pointerEvents='auto';
+    }
+
+    // Check transporte empresa
+    if(checkT){
+      checkT.style.display = ['z1','z3','z4'].includes(zona.id) ? 'block' : 'none';
+      const cb = document.getElementById('sc-cb-transporte');
+      if(cb) cb.checked = false;
+    }
+
     calcAutoEstimacionSC();
   } else {
-    card.style.display='none';
-    if(checkT) checkT.style.display='none';
+    card.style.display = 'none';
+    if(checkT) checkT.style.display = 'none';
   }
   calcTotalSC();
 }
@@ -3971,7 +4030,19 @@ async function enviarSolicitudSinCuenta(){
   };
 
   showLoading('Guardando solicitud...');
+
+  // Subir bitácora si existe
+  const bitacoraFile = document.getElementById('sc-bitacora')?.files?.[0];
+  if(bitacoraFile){
+    obj.archivosBitacora = bitacoraFile.name;
+    const url = await subirBitacoraSP(bitacoraFile, obj.id);
+    if(url) obj.archivosBitacora = url;
+  }
+
   const res = await apiCall('saveSolicitud', { solicitud: obj });
+  if(bitacoraFile && obj.archivosBitacora?.startsWith('/')){
+    await spUpdateEstado(obj.id, { ArchivosBitacora: obj.archivosBitacora }).catch(()=>{});
+  }
   saveSolicitudLocal(obj);
   allSolicitudes = getSolicitudesLocal();
   hideLoading();

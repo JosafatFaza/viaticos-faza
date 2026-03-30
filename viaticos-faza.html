@@ -427,6 +427,7 @@ const GRUPOS_ROLES = {
   'Viaticos_Gerentes':       'gerente',
   'Viaticos_RH':             'rh',
   'Viaticos_Tesoreria':      'tesoreria',
+  'Viaticos_Asistente':      'asistente',
   'Viaticos_Admin_Sistema':  'admin',
 };
 
@@ -699,6 +700,17 @@ async function spGetSolicitudes(email, role){
       esSinCuenta:      !!(item.NombreColabSinCuenta),
       nombreColabSinCuenta: item.NombreColabSinCuenta || '',
       numEmpleado:      item.NumEmpleado || '',
+      hotelNombre:      item.HotelNombre || '',
+      hotelDireccion:   item.HotelDireccion || '',
+      hotelCosto:       item.HotelCosto || 0,
+      hotelCheckIn:     item.HotelCheckIn?.split('T')[0] || '',
+      hotelCheckOut:    item.HotelCheckOut?.split('T')[0] || '',
+      hotelReservacion: item.HotelReservacion || '',
+      aerolineaNombre:  item.AerolineaNombre || '',
+      vueloNumero:      item.VueloNumero || '',
+      vueloCosto:       item.VueloCosto || 0,
+      vueloFecha:       item.VueloFecha?.split('T')[0] || '',
+      logisticaCompletada: item.LogisticaCompletada || false,
       horaSalida:       item.HoraSalida || '',
       horaRegreso:      item.HoraRegreso || '',
       archivosBitacora: item.ArchivosBitacora || '',
@@ -902,6 +914,7 @@ function getZonaDeSucursal(suc){ return ZONAS[SUCURSAL_ZONA[suc]] || null; }
           <option value="administracion">💼 Administración (Luis G.)</option>
           <option value="rh">👥 Recursos Humanos</option>
           <option value="tesoreria">💰 Tesorería</option>
+          <option value="asistente">✈️ Asistente Dirección (Jazmín)</option>
           <option value="admin">⚙️ Admin sistema</option>
         </select>
       </div>
@@ -1117,6 +1130,7 @@ function doLoginM365({ name, email, role }){
     administracion: 'Administración',
     rh:             'Recursos Humanos',
     tesoreria:      'Tesorería',
+    asistente:      'Asistente de Dirección',
     admin:          'Administrador'
   }[role] || role;
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -1151,6 +1165,7 @@ function cambiarRolPrueba(nuevoRol){
     administracion: 'oscar.borjon@faza.com.mx',
     rh:             'liliana.jimenez@faza.com.mx',
     tesoreria:      'josafat.ramirez@faza.com.mx',
+    asistente:      'jazmin.gomez@faza.com.mx',
     admin:          'josafat.ramirez@faza.com.mx',
   };
   // Mantener nombre real pero cambiar el email simulado para filtros
@@ -1237,6 +1252,13 @@ const MENUS = {
     ]},
     { section:'Reportes', items:[
       { id:'reportes', icon:'📈', label:'Reportes' },
+    ]},
+    SECCION_GUIA,
+  ],
+  asistente: [
+    { section:'Logística de viajes', items:[
+      { id:'logistica-pendiente', icon:'✈️', label:'Por gestionar', badge:'logistica' },
+      { id:'logistica-historial', icon:'📁', label:'Historial logística' },
     ]},
     SECCION_GUIA,
   ],
@@ -1360,6 +1382,12 @@ function updateBadges(){
   set('comp-director',compGerente);
   set('comp-admon',   compAdmon);
   set('comp-sin-cuenta', allSolicitudes.filter(s=>s.esSinCuenta && s.estado==='comp_enviada_gerente').length);
+  // Jazmín — solicitudes aprobadas que requieren logística (hospedaje o vuelo) y no está completada
+  set('logistica', allSolicitudes.filter(s=>
+    (s.hospedajeGestionado || s.vueloGestionado) &&
+    ['aprobado','en_viaje'].includes(s.estado) &&
+    !s.logisticaCompletada
+  ).length);
   set('rh',           vencidos + descuentos);
 }
 
@@ -1408,7 +1436,8 @@ const VIEW_TITLES = {
   'todas-solicitudes':         ['Todas las solicitudes','Vista global del sistema'],
   'reportes':                  ['Reportes','Análisis y exportación de datos'],
   'catalogos':                 ['Catálogos y tabulador','Configuración del sistema'],
-  'guia-flujo':                ['Guía del proceso','Roles, flujo completo y reglas de la política'],
+  'logistica-pendiente':       ['Logística por gestionar','Solicitudes aprobadas que requieren hotel y/o vuelo'],
+  'logistica-historial':       ['Historial de logística','Solicitudes con logística completada'],
 };
 
 function renderView(view){
@@ -1437,6 +1466,8 @@ function renderView(view){
     'todas-solicitudes':         renderTodasSolicitudes,
     'reportes':                  renderReportes,
     'catalogos':                 renderCatalogos,
+    'logistica-pendiente':       renderLogisticaPendiente,
+    'logistica-historial':       renderLogisticaHistorial,
     'guia-flujo':                renderGuiaFlujo,
   };
   if(renders[view]) renders[view](c);
@@ -2153,6 +2184,25 @@ function verDetalle(id){
             </div>
           </div>
           ${s.notas?`<div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:13px;color:var(--text2)">📝 ${s.notas}</div>`:''}
+          ${(s.hotelNombre||s.aerolineaNombre) ? `
+          <div style="margin-top:14px">
+            <div class="form-section-title" style="margin-top:0">✈️ Logística gestionada por Asistente de Dirección</div>
+            ${s.hotelNombre?`
+            <div style="background:rgba(56,139,253,.08);border:1px solid rgba(56,139,253,.2);border-radius:8px;padding:12px;margin-bottom:8px;font-size:13px">
+              <div style="font-weight:600;color:var(--blue);margin-bottom:6px">🏨 ${s.hotelNombre}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:var(--text2)">
+                <div>Check-in: <strong style="color:var(--text)">${fmtDate(s.hotelCheckIn)}</strong></div>
+                <div>Check-out: <strong style="color:var(--text)">${fmtDate(s.hotelCheckOut)}</strong></div>
+                ${s.hotelDireccion?`<div style="grid-column:span 2">📍 ${s.hotelDireccion}</div>`:''}
+                ${s.hotelReservacion?`<div>Reservación: <strong style="color:var(--text)">${s.hotelReservacion}</strong></div>`:''}
+              </div>
+            </div>` : ''}
+            ${s.aerolineaNombre?`
+            <div style="background:rgba(163,113,247,.08);border:1px solid rgba(163,113,247,.2);border-radius:8px;padding:12px;font-size:13px">
+              <div style="font-weight:600;color:var(--purple);margin-bottom:6px">✈️ ${s.aerolineaNombre} — Vuelo ${s.vueloNumero||'—'}</div>
+              <div style="font-size:12px;color:var(--text2)">Fecha: <strong style="color:var(--text)">${fmtDate(s.vueloFecha)}</strong></div>
+            </div>` : ''}
+          </div>` : ''}
           ${s.comentarioJefe?`<div style="margin-top:10px" class="alert alert-warn">💬 Jefe: ${s.comentarioJefe}</div>`:''}
           ${s.comentarioRH?`<div style="margin-top:6px" class="alert alert-warn">💬 RH: ${s.comentarioRH}</div>`:''}
         </div>
@@ -4179,6 +4229,205 @@ function abrirCompSinCuenta(solId){
   const c = document.getElementById('content');
   c.dataset.selectedId = solId;
   navigateTo('mis-comprobantes');
+}
+
+/* ═══════════════════════════════════════════════════════
+   CAMBIO 5 — ROL JAZMÍN (ASISTENTE DE DIRECCIÓN)
+   Gestión de hospedaje y vuelos
+═══════════════════════════════════════════════════════ */
+function renderLogisticaPendiente(c){
+  const lista = allSolicitudes.filter(s =>
+    (s.hospedajeGestionado || s.vueloGestionado) &&
+    ['aprobado','en_viaje'].includes(s.estado) &&
+    !s.logisticaCompletada
+  );
+  c.innerHTML = `
+    <div class="alert alert-info">
+      ✈️ Estas solicitudes requieren gestión de hospedaje y/o vuelo por tu parte.
+      Registra los datos de la reservación para que el colaborador sepa dónde hospedarse y qué vuelo tomar.
+    </div>
+    <div id="logistica-cards">
+    ${lista.length ? lista.map(s=>`
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <div>
+            <span class="mono" style="color:var(--accent);font-weight:700">${s.id}</span>
+            <span style="margin-left:10px;font-weight:600">${s.empleado}</span>
+            ${s.esSinCuenta?`<span style="margin-left:8px;font-size:11px;color:var(--yellow)">👤 Para: ${s.nombreColabSinCuenta}</span>`:''}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${badge(s.estado)}
+            <span class="badge badge-travel">${s.sucursal||s.destino}</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:13px;margin-bottom:16px">
+            <div><span style="color:var(--text2)">Salida:</span> <strong>${fmtDate(s.fechaSalida)} ${s.horaSalida?'· '+s.horaSalida+' hrs':''}</strong></div>
+            <div><span style="color:var(--text2)">Regreso:</span> <strong>${fmtDate(s.fechaRegreso)} ${s.horaRegreso?'· '+s.horaRegreso+' hrs':''}</strong></div>
+            <div><span style="color:var(--text2)">Duración:</span> ${s.duracion||'—'}</div>
+            <div><span style="color:var(--text2)">CC:</span> ${s.centroCosto||'—'}</div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            ${s.hospedajeGestionado?'<span class="badge badge-travel">🏨 Requiere Hotel/Hospedaje</span>':''}
+            ${s.vueloGestionado?'<span class="badge badge-proof">✈️ Requiere Vuelo</span>':''}
+          </div>
+
+          <button class="btn btn-primary" onclick="abrirFormLogistica('${s.id}')">
+            ✈️ Registrar logística
+          </button>
+
+          ${(s.hotelNombre || s.aerolineaNombre) ? `
+          <div style="margin-top:12px;background:var(--bg3);border-radius:8px;padding:12px;font-size:12px">
+            <div style="font-weight:600;margin-bottom:6px;color:var(--text2)">Datos registrados:</div>
+            ${s.hotelNombre?`<div>🏨 ${s.hotelNombre} · Check-in: ${fmtDate(s.hotelCheckIn)} · Check-out: ${fmtDate(s.hotelCheckOut)} · $${(s.hotelCosto||0).toLocaleString('es-MX')}</div>`:''}
+            ${s.aerolineaNombre?`<div>✈️ ${s.aerolineaNombre} · Vuelo ${s.vueloNumero||'—'} · ${fmtDate(s.vueloFecha)} · $${(s.vueloCosto||0).toLocaleString('es-MX')}</div>`:''}
+          </div>` : ''}
+        </div>
+      </div>`).join('') :
+      `<div class="empty-state"><div class="icon">✅</div><h3>Sin logística pendiente</h3>
+      <p>Cuando se apruebe una solicitud que requiera hotel o vuelo aparecerá aquí.</p></div>`
+    }
+    </div>`;
+}
+
+function renderLogisticaHistorial(c){
+  const lista = allSolicitudes.filter(s =>
+    (s.hospedajeGestionado || s.vueloGestionado) && s.logisticaCompletada
+  );
+  c.innerHTML = `
+    <div class="card">
+      <div class="card-header"><span class="card-title">Historial de logística completada</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Hotel</th><th>Vuelo</th><th>Costo total</th><th>Fechas</th></tr></thead>
+          <tbody>
+            ${lista.length ? lista.map(s=>`<tr>
+              <td class="mono" style="font-weight:600">${s.id}</td>
+              <td>${fmtEmpleado(s)}</td>
+              <td>${s.sucursal||s.destino}</td>
+              <td style="font-size:12px">${s.hotelNombre||'—'}<br><span style="color:var(--text2)">${fmtDate(s.hotelCheckIn)} → ${fmtDate(s.hotelCheckOut)}</span></td>
+              <td style="font-size:12px">${s.aerolineaNombre?`${s.aerolineaNombre} ${s.vueloNumero||''}`:'—'}</td>
+              <td style="font-family:'DM Mono',monospace">${fmtMXN(Number(s.hotelCosto||0)+Number(s.vueloCosto||0))}</td>
+              <td style="font-size:12px">${fmtDate(s.fechaSalida)} → ${fmtDate(s.fechaRegreso)}</td>
+            </tr>`).join('') :
+            '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text2)">Sin registros</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function abrirFormLogistica(id){
+  const s = allSolicitudes.find(x=>x.id===id);
+  if(!s) return;
+  document.body.insertAdjacentHTML('beforeend',`
+    <div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:580px">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title">✈️ Registrar logística — ${s.id}</div>
+            <div class="modal-subtitle">${s.empleado} · ${s.sucursal||s.destino} · ${fmtDate(s.fechaSalida)} → ${fmtDate(s.fechaRegreso)}</div>
+          </div>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info" style="margin-bottom:12px">
+            Salida: <strong>${fmtDate(s.fechaSalida)} ${s.horaSalida?'a las '+s.horaSalida+' hrs':''}</strong> ·
+            Regreso: <strong>${fmtDate(s.fechaRegreso)} ${s.horaRegreso?'a las '+s.horaRegreso+' hrs':''}</strong>
+          </div>
+
+          ${s.hospedajeGestionado ? `
+          <div class="form-section-title">🏨 Hospedaje</div>
+          <div class="form-row">
+            <div class="form-group"><label>Hotel / Airbnb *</label>
+              <input type="text" id="lg-hotel-nombre" value="${s.hotelNombre||''}" placeholder="Nombre del hotel o Airbnb"></div>
+            <div class="form-group"><label>Costo total MXN</label>
+              <input type="number" id="lg-hotel-costo" value="${s.hotelCosto||0}" min="0"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Check-in *</label>
+              <input type="date" id="lg-checkin" value="${s.hotelCheckIn||s.fechaSalida||''}"></div>
+            <div class="form-group"><label>Check-out *</label>
+              <input type="date" id="lg-checkout" value="${s.hotelCheckOut||s.fechaRegreso||''}"></div>
+          </div>
+          <div class="form-group"><label>Dirección</label>
+            <input type="text" id="lg-hotel-dir" value="${s.hotelDireccion||''}" placeholder="Dirección completa del hotel"></div>
+          <div class="form-group"><label>Número de reservación</label>
+            <input type="text" id="lg-hotel-res" value="${s.hotelReservacion||''}" placeholder="Confirmación / número de reserva"></div>
+          ` : '<div id="lg-hotel-nombre" style="display:none"></div><div id="lg-hotel-costo" style="display:none"></div><div id="lg-checkin" style="display:none"></div><div id="lg-checkout" style="display:none"></div><div id="lg-hotel-dir" style="display:none"></div><div id="lg-hotel-res" style="display:none"></div>'}
+
+          ${s.vueloGestionado ? `
+          <div class="form-section-title">✈️ Vuelo</div>
+          <div class="form-row">
+            <div class="form-group"><label>Aerolínea *</label>
+              <input type="text" id="lg-aerolinea" value="${s.aerolineaNombre||''}" placeholder="Ej. Volaris, Aeroméxico, VivaAerobús"></div>
+            <div class="form-group"><label>Número de vuelo</label>
+              <input type="text" id="lg-vuelo-num" value="${s.vueloNumero||''}" placeholder="Ej. Y4-123"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Fecha del vuelo *</label>
+              <input type="date" id="lg-vuelo-fecha" value="${s.vueloFecha||s.fechaSalida||''}"></div>
+            <div class="form-group"><label>Costo total MXN</label>
+              <input type="number" id="lg-vuelo-costo" value="${s.vueloCosto||0}" min="0"></div>
+          </div>
+          ` : '<div id="lg-aerolinea" style="display:none"></div><div id="lg-vuelo-num" style="display:none"></div><div id="lg-vuelo-fecha" style="display:none"></div><div id="lg-vuelo-costo" style="display:none"></div>'}
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarLogistica('${s.id}')">💾 Guardar y notificar al colaborador</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function guardarLogistica(id){
+  const val = el => document.getElementById(el)?.value || '';
+  const num = el => Number(document.getElementById(el)?.value||0);
+  const s   = allSolicitudes.find(x=>x.id===id);
+  if(!s) return;
+
+  const campos = {
+    HotelNombre:      val('lg-hotel-nombre'),
+    HotelDireccion:   val('lg-hotel-dir'),
+    HotelCosto:       num('lg-hotel-costo'),
+    HotelCheckIn:     val('lg-checkin')||null,
+    HotelCheckOut:    val('lg-checkout')||null,
+    HotelReservacion: val('lg-hotel-res'),
+    AerolineaNombre:  val('lg-aerolinea'),
+    VueloNumero:      val('lg-vuelo-num'),
+    VueloCosto:       num('lg-vuelo-costo'),
+    VueloFecha:       val('lg-vuelo-fecha')||null,
+    LogisticaCompletada: true,
+  };
+
+  showLoading('Guardando logística...');
+  await spUpdateEstado(id, campos);
+
+  // Actualizar localmente
+  const idx = allSolicitudes.findIndex(x=>x.id===id);
+  if(idx>=0){
+    Object.assign(allSolicitudes[idx], {
+      hotelNombre:      campos.HotelNombre,
+      hotelDireccion:   campos.HotelDireccion,
+      hotelCosto:       campos.HotelCosto,
+      hotelCheckIn:     campos.HotelCheckIn,
+      hotelCheckOut:    campos.HotelCheckOut,
+      hotelReservacion: campos.HotelReservacion,
+      aerolineaNombre:  campos.AerolineaNombre,
+      vueloNumero:      campos.VueloNumero,
+      vueloCosto:       campos.VueloCosto,
+      vueloFecha:       campos.VueloFecha,
+      logisticaCompletada: true,
+    });
+    saveSolicitudLocal(allSolicitudes[idx]);
+  }
+
+  hideLoading();
+  closeModal();
+  updateBadges();
+  toast('Logística guardada ✓ El colaborador puede ver los datos en su solicitud', 'success');
+  renderLogisticaPendiente(document.getElementById('content'));
 }
 
 function renderReportes(c){

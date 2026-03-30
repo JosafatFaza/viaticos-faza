@@ -1975,17 +1975,22 @@ async function enviarSolicitud(){
   // Subir bitácora si existe
   const bitacoraFile = document.getElementById('f-bitacora')?.files?.[0];
   if(bitacoraFile){
-    const statusEl = document.getElementById('bitacora-status');
-    if(statusEl) statusEl.textContent = 'Subiendo bitácora...';
+    // Guardar nombre como fallback inmediato
+    obj.archivosBitacora = bitacoraFile.name;
     const url = await subirBitacoraSP(bitacoraFile, obj.id);
     if(url){
-      obj.archivosBitacora = url;
-      if(statusEl) statusEl.textContent = '✅ Bitácora subida correctamente';
+      obj.archivosBitacora = url; // URL completa de SharePoint
     }
   }
 
   const res = await apiCall('saveSolicitud', { solicitud: obj });
   saveSolicitudLocal(obj);
+
+  // Si la bitácora subió correctamente, actualizar ArchivosBitacora en SP por separado
+  if(bitacoraFile && obj.archivosBitacora && obj.archivosBitacora.startsWith('/')){
+    await spUpdateEstado(obj.id, { ArchivosBitacora: obj.archivosBitacora }).catch(()=>{});
+  }
+
   allSolicitudes = getSolicitudesLocal();
   hideLoading();
   if(res.ok){
@@ -1998,33 +2003,66 @@ async function enviarSolicitud(){
 
 // ── Subir bitácora a biblioteca Viaticos_Bitacoras ──────────
 async function subirBitacoraSP(archivo, folioId){
-  if(!SP_TOKEN || !archivo) return null;
+  if(!SP_TOKEN || !archivo){ console.warn('subirBitacoraSP: sin token o archivo'); return null; }
   try {
     const año    = new Date().getFullYear();
-    const folder = `Viaticos_Bitacoras/${año}/${folioId}`;
     const nombre = `Bitacora_${folioId}${archivo.name.substring(archivo.name.lastIndexOf('.'))}`;
+    const baseUrl= `/sites/PortalGrupoFaza/Viaticos_Bitacoras`;
+
+    // Obtener digest
     const digestR = await fetch(`${SP_SITE}/_api/contextinfo`, {
       method:'POST',
       headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'Accept':'application/json;odata=nometadata', 'Content-Type':'application/json' }
     });
-    const digest = (await digestR.json()).FormDigestValue;
-    // Crear carpeta
-    await fetch(`${SP_SITE}/_api/web/folders`, {
-      method:'POST',
-      headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'Accept':'application/json;odata=nometadata',
-        'Content-Type':'application/json', 'X-RequestDigest':digest },
-      body: JSON.stringify({ '__metadata':{'type':'SP.Folder'}, 'ServerRelativeUrl':`/sites/PortalGrupoFaza/${folder}` })
-    }).catch(()=>{});
+    const digestData = await digestR.json();
+    const digest = digestData.FormDigestValue;
+    if(!digest){ console.error('subirBitacoraSP: sin digest', digestData); return null; }
+
+    // Crear carpetas nivel por nivel
+    const niveles = [
+      `${baseUrl}/${año}`,
+      `${baseUrl}/${año}/${folioId}`
+    ];
+    for(const carpeta of niveles){
+      const r = await fetch(`${SP_SITE}/_api/web/folders`, {
+        method:'POST',
+        headers:{
+          'Authorization':`Bearer ${SP_TOKEN}`,
+          'Accept':'application/json;odata=nometadata',
+          'Content-Type':'application/json',
+          'X-RequestDigest':digest
+        },
+        body: JSON.stringify({ '__metadata':{'type':'SP.Folder'}, 'ServerRelativeUrl': carpeta })
+      });
+      // 409 = ya existe, está bien
+      if(!r.ok && r.status !== 409){
+        const err = await r.text();
+        console.warn(`subirBitacoraSP: carpeta ${carpeta} — ${r.status}`, err);
+      }
+    }
+
     // Subir archivo
+    const folderUrl = `${baseUrl}/${año}/${folioId}`;
     const buf = await archivo.arrayBuffer();
     const upResp = await fetch(
-      `${SP_SITE}/_api/web/GetFolderByServerRelativeUrl('/sites/PortalGrupoFaza/${folder}')/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
+      `${SP_SITE}/_api/web/GetFolderByServerRelativeUrl('${folderUrl}')/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
       { method:'POST', headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'X-RequestDigest':digest }, body: buf }
     );
-    if(!upResp.ok) return null;
+
+    if(!upResp.ok){
+      const err = await upResp.text();
+      console.error('subirBitacoraSP upload error:', upResp.status, err);
+      return null;
+    }
+
     const upData = await upResp.json();
+    console.log('subirBitacoraSP OK:', upData.ServerRelativeUrl);
     return upData.ServerRelativeUrl || null;
-  } catch(e){ console.error('subirBitacoraSP:', e); return null; }
+
+  } catch(e){
+    console.error('subirBitacoraSP exception:', e);
+    return null;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2064,11 +2102,14 @@ function verDetalle(id){
           <div class="detail-row">
             <span class="detail-label">Bitácora</span>
             <span class="detail-value">
-              <a href="${s.archivosBitacora.startsWith('http') ? s.archivosBitacora : 'https://grupofazamx.sharepoint.com'+s.archivosBitacora}"
-                target="_blank"
-                style="display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-weight:500">
-                📋 Ver bitácora del viaje →
-              </a>
+              ${(s.archivosBitacora.startsWith('/') || s.archivosBitacora.startsWith('http')) ?
+                `<a href="${s.archivosBitacora.startsWith('http') ? s.archivosBitacora : 'https://grupofazamx.sharepoint.com'+s.archivosBitacora}"
+                  target="_blank"
+                  style="display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-weight:500;text-decoration:none">
+                  📋 Ver bitácora del viaje →
+                </a>` :
+                `<span style="font-size:12px;color:var(--text2)">📋 ${s.archivosBitacora} <span style="color:var(--yellow);font-size:11px">(enlace procesándose)</span></span>`
+              }
             </span>
           </div>` : ''}
           <div class="detail-row"><span class="detail-label">Centro de costos</span><span class="detail-value">${s.centroCosto||'—'}</span></div>
@@ -3039,11 +3080,15 @@ function aprobar(id){
                 </div>
                 ${s.archivosBitacora ? `
                 <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-                  <a href="https://grupofazamx.sharepoint.com${s.archivosBitacora}" target="_blank"
-                    style="display:inline-flex;align-items:center;gap:8px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.25);color:var(--blue);padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none">
-                    📋 Ver bitácora del viaje →
-                  </a>
-                  <span style="font-size:11px;color:var(--text2);margin-left:8px">Revisa las actividades planeadas antes de aprobar</span>
+                  ${(s.archivosBitacora.startsWith('/') || s.archivosBitacora.startsWith('http')) ?
+                    `<a href="${s.archivosBitacora.startsWith('http') ? s.archivosBitacora : 'https://grupofazamx.sharepoint.com'+s.archivosBitacora}"
+                      target="_blank"
+                      style="display:inline-flex;align-items:center;gap:8px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.25);color:var(--blue);padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none">
+                      📋 Ver bitácora del viaje →
+                    </a>
+                    <span style="font-size:11px;color:var(--text2);margin-left:8px">Revisa las actividades planeadas antes de aprobar</span>` :
+                    `<span style="font-size:12px;color:var(--text2)">📋 ${s.archivosBitacora} <span style="color:var(--yellow);font-size:11px">(enlace procesándose)</span></span>`
+                  }
                 </div>` : '<div style="margin-top:8px;font-size:11px;color:var(--text3)">Sin bitácora adjunta</div>'}
               </div>`;
           })()}

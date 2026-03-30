@@ -2007,7 +2007,7 @@ async function subirBitacoraSP(archivo, folioId){
   try {
     const año    = new Date().getFullYear();
     const nombre = `Bitacora_${folioId}${archivo.name.substring(archivo.name.lastIndexOf('.'))}`;
-    const baseUrl= `/sites/PortalGrupoFaza/Viaticos_Bitacoras`;
+    const folderPath = `/sites/PortalGrupoFaza/Viaticos_Bitacoras/${año}/${folioId}`;
 
     // Obtener digest
     const digestR = await fetch(`${SP_SITE}/_api/contextinfo`, {
@@ -2016,45 +2016,39 @@ async function subirBitacoraSP(archivo, folioId){
     });
     const digestData = await digestR.json();
     const digest = digestData.FormDigestValue;
-    if(!digest){ console.error('subirBitacoraSP: sin digest', digestData); return null; }
+    if(!digest){ console.error('subirBitacoraSP: sin digest'); return null; }
 
-    // Crear carpetas nivel por nivel
-    const niveles = [
-      `${baseUrl}/${año}`,
-      `${baseUrl}/${año}/${folioId}`
-    ];
-    for(const carpeta of niveles){
-      const r = await fetch(`${SP_SITE}/_api/web/folders`, {
+    // Crear carpeta completa en un solo paso con EnsureFolderPath
+    const ensureResp = await fetch(
+      `${SP_SITE}/_api/web/EnsureFolderPath('${encodeURIComponent(folderPath)}')`,
+      {
         method:'POST',
         headers:{
           'Authorization':`Bearer ${SP_TOKEN}`,
           'Accept':'application/json;odata=nometadata',
-          'Content-Type':'application/json',
-          'X-RequestDigest':digest
+          'Content-Type':'application/json;odata=nometadata',
+          'X-RequestDigest': digest
         },
-        body: JSON.stringify({ '__metadata':{'type':'SP.Folder'}, 'ServerRelativeUrl': carpeta })
-      });
-      // 409 = ya existe, está bien
-      if(!r.ok && r.status !== 409){
-        const err = await r.text();
-        console.warn(`subirBitacoraSP: carpeta ${carpeta} — ${r.status}`, err);
+        body: JSON.stringify({ DecodedUrl: folderPath })
       }
+    );
+    if(!ensureResp.ok){
+      const err = await ensureResp.text();
+      console.error('EnsureFolderPath error:', ensureResp.status, err);
+      return null;
     }
 
     // Subir archivo
-    const folderUrl = `${baseUrl}/${año}/${folioId}`;
     const buf = await archivo.arrayBuffer();
     const upResp = await fetch(
-      `${SP_SITE}/_api/web/GetFolderByServerRelativeUrl('${folderUrl}')/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
+      `${SP_SITE}/_api/web/GetFolderByServerRelativeUrl('${folderPath}')/Files/add(url='${encodeURIComponent(nombre)}',overwrite=true)`,
       { method:'POST', headers:{ 'Authorization':`Bearer ${SP_TOKEN}`, 'X-RequestDigest':digest }, body: buf }
     );
-
     if(!upResp.ok){
       const err = await upResp.text();
       console.error('subirBitacoraSP upload error:', upResp.status, err);
       return null;
     }
-
     const upData = await upResp.json();
     console.log('subirBitacoraSP OK:', upData.ServerRelativeUrl);
     return upData.ServerRelativeUrl || null;

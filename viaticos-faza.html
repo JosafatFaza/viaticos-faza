@@ -2108,6 +2108,18 @@ function verDetalle(id){
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${badge(s.estado)} ${zonaBadge}</div>
           ${logisticaInfo.length ? `<div class="alert alert-info" style="margin-bottom:12px">${logisticaInfo.join(' &nbsp;|&nbsp; ')}</div>` : ''}
           <div class="detail-row"><span class="detail-label">Empleado</span><span class="detail-value">${s.empleado}</span></div>
+          ${s.esSinCuenta ? `
+          <div class="detail-row" style="background:rgba(210,153,34,.08);border-radius:6px;padding:8px 0">
+            <span class="detail-label" style="color:var(--yellow)">👤 Colaborador</span>
+            <span class="detail-value"><strong>${s.nombreColabSinCuenta||'—'}</strong>
+              <span style="margin-left:8px;font-size:11px;color:var(--text2)">N° Empleado: ${s.numEmpleado||'—'}</span>
+              <span style="margin-left:8px" class="badge badge-pending" style="font-size:10px">Sin cuenta M365</span>
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label" style="color:var(--text2)">Generado por</span>
+            <span class="detail-value" style="font-size:12px;color:var(--text2)">${s.empleado} (Gerente)</span>
+          </div>` : ''}
           <div class="detail-row"><span class="detail-label">Sucursal</span><span class="detail-value">${s.sucursal||s.destino}</span></div>
           <div class="detail-row"><span class="detail-label">Motivo</span><span class="detail-value">${s.motivo}</span></div>
           ${s.objetivo?`<div class="detail-row"><span class="detail-label">Objetivo</span><span class="detail-value">${s.objetivo}</span></div>`:''}
@@ -3460,6 +3472,7 @@ function registrarAnticipo(id){
         </div>
         <div class="modal-body">
           <div class="detail-row"><span class="detail-label">Empleado</span><span class="detail-value">${s.empleado}</span></div>
+          ${s.esSinCuenta ? `<div class="detail-row"><span class="detail-label" style="color:var(--yellow)">👤 Para</span><span class="detail-value"><strong>${s.nombreColabSinCuenta}</strong> — N° ${s.numEmpleado}</span></div>` : ''}
           <div class="detail-row"><span class="detail-label">Viaje a</span><span class="detail-value">${s.destino}</span></div>
           <div class="detail-row"><span class="detail-label">Monto solicitado</span><span class="detail-value" style="color:var(--accent)">${fmtMXN(s.montoAnticipo)}</span></div>
           <div style="margin-top:16px" class="form-row">

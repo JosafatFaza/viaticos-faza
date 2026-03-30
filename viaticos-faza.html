@@ -975,9 +975,9 @@ const STATUS_CLASS = {
   vencido_comprobacion:            'badge-rejected',
 };
 
-// Responsable de Administración (Luis Gallardo)
-const ADMIN_EMAIL = 'luis.gallardo@faza.com.mx';
-const ADMIN_NAME  = 'Luis Gallardo';
+// Responsable de Administración
+const ADMIN_EMAIL = 'oscar.borjon@faza.com.mx';
+const ADMIN_NAME  = 'Oscar Borjón';
 // Días hábiles para comprobación post-viaje
 const DIAS_COMPROBACION = 5;
 
@@ -1135,7 +1135,7 @@ function cambiarRolPrueba(nuevoRol){
     empleado:       USER.emailReal || USER.email,
     gerente:        'josafat.ramirez@faza.com.mx',
     director:       'eduardo.faccuseh@faza.com.mx',
-    administracion: 'luis.gallardo@faza.com.mx',
+    administracion: 'oscar.borjon@faza.com.mx',
     rh:             'liliana.jimenez@faza.com.mx',
     tesoreria:      'josafat.ramirez@faza.com.mx',
     admin:          'josafat.ramirez@faza.com.mx',
@@ -1591,19 +1591,8 @@ function renderNuevaSolicitud(c){
           <p style="font-size:13px;color:var(--text2)">Selecciona una sucursal para ver las opciones de logística aplicables a esa zona.</p>
         </div>
 
-        <div class="form-section-title">💳 Anticipo</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>¿Solicita anticipo?</label>
-            <select id="f-anticipo">
-              <option value="si">Sí, requiero anticipo</option>
-              <option value="no">No, cubro los gastos</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Monto de anticipo solicitado</label>
-            <input type="number" id="f-monto-anticipo" placeholder="0.00" min="0">
-          </div>
+        <div class="alert alert-info" style="margin-bottom:16px">
+          💳 <strong>Anticipo:</strong> El anticipo se entrega siempre antes del viaje. Tesorería registrará el depósito una vez aprobada la solicitud. Indica el monto estimado en la sección de gastos.
         </div>
 
         <div class="form-section-title">📝 Objetivo y justificación del viaje</div>
@@ -1825,8 +1814,8 @@ function buildSolicitudObj(estado='pendiente_jefe'){
     montoTotal: total,
     hospedajeGestionado: zona?.hospedajeGestionado || false,
     vueloGestionado: zona?.vueloGestionado || false,
-    solicitaAnticipo: document.getElementById('f-anticipo')?.value || 'si',
-    montoAnticipo: document.getElementById('f-monto-anticipo')?.value || 0,
+    solicitaAnticipo: 'si',
+    montoAnticipo: document.getElementById('f-total')?.textContent?.replace(/[^0-9.]/g,'') || 0,
     notas: document.getElementById('f-notas')?.value.trim() || '',
     estado, montoEntregado:0,
   };
@@ -3162,7 +3151,7 @@ function notificarVencimiento(id){
    VISTA: TESORERÍA
 ═══════════════════════════════════════════════════════ */
 function renderTesoreria(c){
-  const lista = allSolicitudes.filter(s=>s.estado==='aprobado' && Number(s.montoEntregado||0)===0 && s.solicitaAnticipo==='si');
+  const lista = allSolicitudes.filter(s=>s.estado==='aprobado' && Number(s.montoEntregado||0)===0);
   c.innerHTML = `
     <div class="alert alert-info">💰 Solicitudes aprobadas que requieren entrega de anticipo: <strong>${lista.length}</strong></div>
     <div class="card">

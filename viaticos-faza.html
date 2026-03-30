@@ -2018,24 +2018,28 @@ async function subirBitacoraSP(archivo, folioId){
     const digest = digestData.FormDigestValue;
     if(!digest){ console.error('subirBitacoraSP: sin digest'); return null; }
 
-    // Crear carpeta completa en un solo paso con EnsureFolderPath
-    const ensureResp = await fetch(
-      `${SP_SITE}/_api/web/EnsureFolderPath('${encodeURIComponent(folderPath)}')`,
-      {
-        method:'POST',
-        headers:{
-          'Authorization':`Bearer ${SP_TOKEN}`,
-          'Accept':'application/json;odata=nometadata',
-          'Content-Type':'application/json;odata=nometadata',
-          'X-RequestDigest': digest
-        },
-        body: JSON.stringify({ DecodedUrl: folderPath })
+    // Crear carpeta nivel por nivel usando add(decodedurl)
+    const carpetas = [
+      `/sites/PortalGrupoFaza/Viaticos_Bitacoras/${año}`,
+      `/sites/PortalGrupoFaza/Viaticos_Bitacoras/${año}/${folioId}`
+    ];
+    for(const carpeta of carpetas){
+      const r = await fetch(
+        `${SP_SITE}/_api/web/folders/add(decodedurl='${encodeURIComponent(carpeta)}')`,
+        {
+          method:'POST',
+          headers:{
+            'Authorization':`Bearer ${SP_TOKEN}`,
+            'Accept':'application/json;odata=nometadata',
+            'Content-Type':'application/json;odata=nometadata',
+            'X-RequestDigest': digest
+          }
+        }
+      );
+      // 400/409 = carpeta ya existe, está bien
+      if(!r.ok && r.status !== 400 && r.status !== 409){
+        console.warn(`Carpeta ${carpeta}: ${r.status}`);
       }
-    );
-    if(!ensureResp.ok){
-      const err = await ensureResp.text();
-      console.error('EnsureFolderPath error:', ensureResp.status, err);
-      return null;
     }
 
     // Subir archivo

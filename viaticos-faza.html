@@ -645,6 +645,8 @@ async function spSaveSolicitud(s){
       VueloGestionado:    s.vueloGestionado||false,
       Notas:              s.notas || '',
       ArchivosBitacora:   s.archivosBitacora || '',
+      NombreColabSinCuenta: s.nombreColabSinCuenta || '',
+      NumEmpleado:        s.numEmpleado || '',
       Estado:             s.estado,
     });
     return { ok: true };
@@ -694,6 +696,9 @@ async function spGetSolicitudes(email, role){
       hospedajeGestionado: item.HospedajeGestionado,
       vueloGestionado:  item.VueloGestionado,
       notas:            item.Notas,
+      esSinCuenta:      !!(item.NombreColabSinCuenta),
+      nombreColabSinCuenta: item.NombreColabSinCuenta || '',
+      numEmpleado:      item.NumEmpleado || '',
       horaSalida:       item.HoraSalida || '',
       horaRegreso:      item.HoraRegreso || '',
       archivosBitacora: item.ArchivosBitacora || '',
@@ -1212,10 +1217,12 @@ const MENUS = {
     ]},
     { section:'Comprobación de gastos', items:[
       { id:'revision-comprobaciones',  icon:'🧾', label:'Revisar comprobaciones', badge:'comp-gerente' },
+      { id:'comp-sin-cuenta',          icon:'👤', label:'Comp. colab. sin cuenta', badge:'comp-sin-cuenta' },
     ]},
     { section:'Mis viáticos', items:[
       { id:'mis-solicitudes',  icon:'📋', label:'Mis solicitudes' },
       { id:'nueva-solicitud',  icon:'➕', label:'Solicitar viático' },
+      { id:'solicitud-sin-cuenta', icon:'👤', label:'Solicitud sin cuenta M365' },
     ]},
     SECCION_GUIA,
   ],
@@ -1349,8 +1356,9 @@ function updateBadges(){
   set('director',     pendDir);
   set('admon',        pendAdmon);
   set('comp-gerente', compGerente);
-  set('comp-director',compGerente); // Director ve las mismas comp_enviada_gerente de sus Gerentes
+  set('comp-director',compGerente);
   set('comp-admon',   compAdmon);
+  set('comp-sin-cuenta', allSolicitudes.filter(s=>s.esSinCuenta && s.estado==='comp_enviada_gerente').length);
   set('rh',           vencidos + descuentos);
 }
 
@@ -1381,6 +1389,8 @@ function renderCurrentView(){ if(currentView) renderView(currentView); }
 const VIEW_TITLES = {
   'mis-solicitudes':           ['Mis solicitudes','Historial de viáticos solicitados'],
   'nueva-solicitud':           ['Nueva solicitud','Registra una nueva solicitud de viáticos'],
+  'solicitud-sin-cuenta':      ['Solicitud — Colaborador sin cuenta M365','El Gerente genera la solicitud a nombre del colaborador'],
+  'comp-sin-cuenta':           ['Comprobación — Colaboradores sin cuenta','Comprobación de gastos por folio generado por el Gerente'],
   'mis-comprobantes':          ['Comprobación de gastos','Carga de CFDI y gastos del viaje'],
   'mi-saldo':                  ['Mi saldo y anticipos','Anticipos recibidos y por comprobar'],
   'autorizaciones':            ['Solicitudes por autorizar','Revisión y aprobación de viáticos'],
@@ -1408,6 +1418,8 @@ function renderView(view){
   const renders = {
     'mis-solicitudes':           renderMisSolicitudes,
     'nueva-solicitud':           renderNuevaSolicitud,
+    'solicitud-sin-cuenta':      renderSolicitudSinCuenta,
+    'comp-sin-cuenta':           renderCompSinCuenta,
     'mis-comprobantes':          renderMisComprobantes,
     'mi-saldo':                  renderMiSaldo,
     'autorizaciones':            renderAutorizaciones,
@@ -3038,7 +3050,9 @@ function renderAutorizaciones(c){
             ${lista.length ? lista.map(s=>`
               <tr>
                 <td class="mono">${s.id}</td>
-                <td><strong>${s.empleado}</strong><br><span style="font-size:11px;color:var(--text2)">${s.email}</span></td>
+                <td><strong>${s.empleado}</strong><br><span style="font-size:11px;color:var(--text2)">${s.email}</span>
+                ${s.esSinCuenta?`<br><span style="font-size:11px;color:var(--yellow)">👤 Para: ${s.nombreColabSinCuenta} (Emp. ${s.numEmpleado})</span>`:''}
+                </td>
                 <td>${s.sucursal||s.destino}</td>
                 <td>${fmtDate(s.fechaSalida)}</td>
                 <td style="text-align:center">${s.duracion||'—'}</td>
@@ -3705,6 +3719,336 @@ function exportarCSV(){
   a.download = `viaticos_faza_${today()}.csv`;
   a.click();
   toast('CSV exportado', 'success');
+}
+
+/* ═══════════════════════════════════════════════════════
+   CAMBIO 4 — COLABORADOR SIN CUENTA M365
+═══════════════════════════════════════════════════════ */
+function renderSolicitudSinCuenta(c){
+  c.innerHTML = `
+    <div class="alert alert-warn">
+      👤 Esta solicitud la genera el <strong>Gerente</strong> a nombre de un colaborador que no tiene cuenta de M365.
+      Al enviarla ya cuenta con la aprobación del Gerente y pasa directamente a <strong>${ADMIN_NAME} (Administración)</strong>.
+    </div>
+    <div class="card" style="max-width:900px">
+      <div class="card-header">
+        <span class="card-title">👤 Solicitud — Colaborador sin cuenta M365</span>
+        <span class="badge badge-orange">Gerente genera</span>
+      </div>
+      <div class="card-body">
+
+        <div class="form-section-title">👤 Datos del colaborador</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre completo del colaborador *</label>
+            <input type="text" id="sc-nombre" placeholder="Nombre y apellidos del colaborador">
+          </div>
+          <div class="form-group">
+            <label>Número de empleado *</label>
+            <input type="text" id="sc-num-empleado" placeholder="Ej. EMP-001">
+          </div>
+        </div>
+
+        <div class="form-section-title">📍 Datos del viaje</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Sucursal / Destino *</label>
+            <select id="sc-sucursal" onchange="onSucursalChangeSC()">
+              <option value="">-- Selecciona sucursal --</option>
+              ${buildSucursalOptions()}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Motivo del viaje *</label>
+            <input type="text" id="sc-motivo" placeholder="Descripción del objetivo">
+          </div>
+        </div>
+
+        <div id="sc-zona-card" style="display:none;margin-bottom:16px;border-radius:10px;padding:14px 16px;border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <span id="sc-zona-badge" class="badge"></span>
+            <span id="sc-zona-nombre" style="font-size:13px;font-weight:600"></span>
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group"><label>Fecha de salida *</label><input type="date" id="sc-salida" value="${today()}" onchange="calcDurationSC()"></div>
+          <div class="form-group"><label>Fecha de regreso *</label><input type="date" id="sc-regreso" value="${today()}" onchange="calcDurationSC()"></div>
+          <div class="form-group"><label>Duración</label><input type="text" id="sc-duracion" readonly style="background:var(--bg);color:var(--text2)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>⏰ Hora posible de salida *</label>
+            <input type="time" id="sc-hora-salida" value="07:00" onchange="calcDurationSC()">
+          </div>
+          <div class="form-group">
+            <label>⏰ Hora posible de regreso *</label>
+            <input type="time" id="sc-hora-regreso" value="18:00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Centro de costos *</label>
+            <select id="sc-cc"><option value="">-- Selecciona --</option>${CENTROS_COSTO.map(cc=>`<option>${cc}</option>`).join('')}</select>
+          </div>
+          <div class="form-group"><label>Proyecto</label>
+            <select id="sc-proyecto"><option value="">-- Ninguno --</option>${PROYECTOS.map(p=>`<option>${p}</option>`).join('')}</select>
+          </div>
+        </div>
+
+        <!-- Check transporte empresa -->
+        <div id="sc-check-transporte" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="sc-cb-transporte" onchange="calcAutoEstimacionSC()"
+              style="width:16px;height:16px;accent-color:var(--accent)">
+            <span>🚐 <strong>Transporte de la empresa</strong></span>
+          </label>
+        </div>
+
+        <div class="form-section-title">💸 Estimación de gastos</div>
+        <div id="sc-budget-avisos"></div>
+        <div class="budget-grid">
+          <div class="budget-item" id="sc-bi-hospedaje"><label>🏨 Hospedaje</label><input type="number" id="sc-b-hospedaje" value="0" min="0" oninput="calcTotalSC()"></div>
+          <div class="budget-item"><label>🍽️ Alimentación</label><input type="number" id="sc-b-alim" value="0" min="0" oninput="calcTotalSC()"></div>
+          <div class="budget-item" id="sc-bi-trans"><label>🚗 Transporte local</label><input type="number" id="sc-b-trans" value="0" min="0" oninput="calcTotalSC()"></div>
+          <div class="budget-item"><label>⛽ Combustible</label><input type="number" id="sc-b-comb" value="0" min="0" oninput="calcTotalSC()"></div>
+          <div class="budget-item"><label>📎 Otros</label><input type="number" id="sc-b-otros" value="0" min="0" oninput="calcTotalSC()"></div>
+        </div>
+        <div class="total-box" style="margin-top:12px">
+          <span>Monto total estimado</span>
+          <strong id="sc-total-display">$ 0.00</strong>
+        </div>
+
+        <div class="form-section-title">📝 Objetivo del viaje</div>
+        <div class="form-group">
+          <label>Objetivo del viaje *</label>
+          <textarea id="sc-objetivo" rows="2" placeholder="Descripción del propósito del viaje..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Notas adicionales</label>
+          <textarea id="sc-notas" rows="2" placeholder="Observaciones..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+          <button class="btn btn-ghost" onclick="navigateTo('mis-solicitudes')">Cancelar</button>
+          <button class="btn btn-primary" onclick="enviarSolicitudSinCuenta()">📤 Enviar a autorización →</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function onSucursalChangeSC(){
+  const suc  = document.getElementById('sc-sucursal').value;
+  const zona = suc && suc!=='__otro__' ? getZonaDeSucursal(suc) : null;
+  const card = document.getElementById('sc-zona-card');
+  const checkT = document.getElementById('sc-check-transporte');
+  if(zona){
+    card.style.display='block';
+    card.style.borderColor = zona.color;
+    document.getElementById('sc-zona-badge').textContent = zona.nombre;
+    document.getElementById('sc-zona-badge').style.cssText = `background:${zona.colorBg};color:${zona.color};border:1px solid ${zona.colorBorder}`;
+    document.getElementById('sc-zona-nombre').textContent = zona.km + ' · ' + zona.tiempo;
+    // Hospedaje gestionado
+    const biH = document.getElementById('sc-bi-hospedaje');
+    if(zona.hospedajeGestionado){ biH.style.opacity='0.4'; biH.style.pointerEvents='none'; document.getElementById('sc-b-hospedaje').value=0; }
+    else { biH.style.opacity='1'; biH.style.pointerEvents='auto'; }
+    // Check transporte
+    if(checkT) checkT.style.display = ['z1','z3','z4'].includes(zona.id) ? 'block' : 'none';
+    calcAutoEstimacionSC();
+  } else {
+    card.style.display='none';
+    if(checkT) checkT.style.display='none';
+  }
+  calcTotalSC();
+}
+
+function calcDurationSC(){
+  const s = document.getElementById('sc-salida')?.value;
+  const r = document.getElementById('sc-regreso')?.value;
+  if(s && r){
+    const diff = Math.round((new Date(r)-new Date(s))/(1000*60*60*24));
+    document.getElementById('sc-duracion').value = diff>=0?`${diff+1} día${diff!==0?'s':''}` : '—';
+  }
+  calcAutoEstimacionSC();
+}
+
+function calcTotalSC(){
+  const ids = ['sc-b-hospedaje','sc-b-alim','sc-b-trans','sc-b-comb','sc-b-otros'];
+  const total = ids.reduce((s,id)=>s+Number(document.getElementById(id)?.value||0),0);
+  const el = document.getElementById('sc-total-display');
+  if(el) el.textContent = fmtMXN(total);
+  return total;
+}
+
+function calcAutoEstimacionSC(){
+  const suc     = document.getElementById('sc-sucursal')?.value;
+  const horaSal = document.getElementById('sc-hora-salida')?.value || '07:00';
+  const horaReg = document.getElementById('sc-hora-regreso')?.value || '18:00';
+  const zona    = suc && suc!=='__otro__' ? getZonaDeSucursal(suc) : null;
+  if(!zona) return;
+  const s = document.getElementById('sc-salida')?.value;
+  const r = document.getElementById('sc-regreso')?.value;
+  if(!s||!r) return;
+  const dias = Math.max(1, Math.round((new Date(r)-new Date(s))/(1000*60*60*24))+1);
+  const L = zona.limites;
+  const horaSalH = parseInt(horaSal.split(':')[0]);
+  const horaRegH = parseInt(horaReg.split(':')[0]);
+  const usaEmpresa = document.getElementById('sc-cb-transporte')?.checked||false;
+  let totalAlim = 0;
+  if(dias===1){ totalAlim = horaSalH<8?L.alimDiaTotal:L.alimMedioTotal; }
+  else {
+    totalAlim += horaSalH<8?L.alimDiaTotal:L.alimMedioTotal;
+    if(dias>2) totalAlim += L.alimDiaTotal*(dias-2);
+    totalAlim += horaRegH>=14?L.alimDiaTotal:L.alimMedioTotal;
+  }
+  const totalTrans = usaEmpresa?0:L.transporteLocal*dias;
+  const bAlim = document.getElementById('sc-b-alim');
+  const bTrans = document.getElementById('sc-b-trans');
+  const biTrans = document.getElementById('sc-bi-trans');
+  if(bAlim) bAlim.value = totalAlim;
+  if(bTrans) bTrans.value = totalTrans;
+  if(biTrans){ biTrans.style.opacity=usaEmpresa?'0.4':'1'; biTrans.style.pointerEvents=usaEmpresa?'none':'auto'; }
+  const avisoEl = document.getElementById('sc-budget-avisos');
+  if(avisoEl) avisoEl.innerHTML = `<div class="alert alert-info" style="margin-bottom:8px">
+    📊 <strong>Estimación automática — ${dias} día${dias>1?'s':''}:</strong>
+    Alimentación: <strong>${fmtMXN(totalAlim)}</strong>
+    ${usaEmpresa?' · 🚐 Transporte: Vehículo empresa':` · 🚗 Transporte: <strong>${fmtMXN(totalTrans)}</strong>`}
+  </div>`;
+  calcTotalSC();
+}
+
+async function enviarSolicitudSinCuenta(){
+  const nombre    = document.getElementById('sc-nombre')?.value.trim();
+  const numEmp    = document.getElementById('sc-num-empleado')?.value.trim();
+  const suc       = document.getElementById('sc-sucursal')?.value;
+  const motivo    = document.getElementById('sc-motivo')?.value.trim();
+  const objetivo  = document.getElementById('sc-objetivo')?.value.trim();
+  const salida    = document.getElementById('sc-salida')?.value;
+  const regreso   = document.getElementById('sc-regreso')?.value;
+  const horaSal   = document.getElementById('sc-hora-salida')?.value||'07:00';
+  const horaReg   = document.getElementById('sc-hora-regreso')?.value||'18:00';
+  const cc        = document.getElementById('sc-cc')?.value;
+  const proyecto  = document.getElementById('sc-proyecto')?.value||'';
+  const duracion  = document.getElementById('sc-duracion')?.value||'';
+  const usaEmpresa= document.getElementById('sc-cb-transporte')?.checked||false;
+  const total     = calcTotalSC();
+
+  if(!nombre)   { toast('Ingresa el nombre del colaborador','error'); return; }
+  if(!numEmp)   { toast('Ingresa el número de empleado','error'); return; }
+  if(!suc)      { toast('Selecciona la sucursal','error'); return; }
+  if(!motivo)   { toast('Ingresa el motivo del viaje','error'); return; }
+  if(!objetivo) { toast('Ingresa el objetivo del viaje','error'); return; }
+  if(!cc)       { toast('Selecciona el centro de costos','error'); return; }
+  if(total<=0)  { toast('La estimación debe ser mayor a $0','error'); return; }
+
+  const zona = suc!=='__otro__' ? getZonaDeSucursal(suc) : null;
+  const primerEstado = 'pendiente_administracion'; // Gerente genera = ya aprobado, va directo a Administración
+
+  const obj = {
+    id: genId(), fechaSolicitud: today(),
+    empleado:   USER.name, // El Gerente es quien lo genera
+    email:      USER.email,
+    esSinCuenta: true,
+    nombreColabSinCuenta: nombre,
+    numEmpleado: numEmp,
+    sucursal:   suc, destino: suc,
+    zona:       zona?.nombre||'Sin zona', zonaId: zona?.id||'',
+    motivo, objetivo,
+    fechaSalida: salida, fechaRegreso: regreso,
+    horaSalida: horaSal, horaRegreso: horaReg, duracion,
+    centroCosto: cc, proyecto,
+    estHospedaje:    Number(document.getElementById('sc-b-hospedaje')?.value||0),
+    estAlimentacion: Number(document.getElementById('sc-b-alim')?.value||0),
+    estTransporte:   Number(document.getElementById('sc-b-trans')?.value||0),
+    estCombustible:  Number(document.getElementById('sc-b-comb')?.value||0),
+    estOtros:        Number(document.getElementById('sc-b-otros')?.value||0),
+    montoTotal: total, montoAnticipo: total,
+    solicitaAnticipo: 'si', montoEntregado: 0,
+    hospedajeGestionado: zona?.hospedajeGestionado||false,
+    vueloGestionado: zona?.vueloGestionado||false,
+    transporteEmpresa: usaEmpresa,
+    notas: document.getElementById('sc-notas')?.value.trim()||'',
+    archivosBitacora:'', estado: primerEstado
+  };
+
+  showLoading('Guardando solicitud...');
+  const res = await apiCall('saveSolicitud', { solicitud: obj });
+  saveSolicitudLocal(obj);
+  allSolicitudes = getSolicitudesLocal();
+  hideLoading();
+  toast(`Solicitud ${obj.id} generada para ${nombre} — enviada a ${ADMIN_NAME} (Administración)`, 'success');
+  navigateTo('mis-solicitudes');
+}
+
+/* ── Comprobación de gastos de colaboradores sin cuenta ── */
+function renderCompSinCuenta(c){
+  const lista = allSolicitudes.filter(s => s.esSinCuenta && s.email===USER.email &&
+    ['en_viaje','pendiente_comprobacion','comp_rechazada_gerente'].includes(s.estado));
+
+  c.innerHTML = `
+    <div class="alert alert-info">
+      👤 Aquí puedes registrar los gastos de tus colaboradores que no tienen cuenta M365.
+      Busca el folio del colaborador e ingresa sus comprobantes.
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>🔍 Buscar por folio o nombre del colaborador</label>
+            <input type="text" id="sc-comp-buscar" placeholder="VT-XXXXX o nombre..." oninput="filtrarCompSinCuenta()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sc-comp-lista">
+      ${lista.length ? lista.map(s=>`
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-header">
+            <div>
+              <span class="mono" style="color:var(--accent);font-weight:700">${s.id}</span>
+              <span style="margin-left:10px;font-weight:600">${s.nombreColabSinCuenta||'—'}</span>
+              <span style="margin-left:8px;font-size:11px;color:var(--text2)">Emp. ${s.numEmpleado||'—'}</span>
+            </div>
+            <span class="badge badge-travel" style="margin-left:auto">${s.sucursal||s.destino}</span>
+          </div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+              📅 ${fmtDate(s.fechaSalida)} → ${fmtDate(s.fechaRegreso)} · 💰 Anticipo: ${fmtMXN(s.montoEntregado)}
+            </div>
+            ${compResumenHtml(s)}
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+              <button class="btn btn-primary" style="font-size:12px" onclick="abrirCompSinCuenta('${s.id}')">🧾 Registrar gastos</button>
+              ${getGastosSolicitud(s.id).length>0?`<button class="btn btn-green" style="font-size:12px" onclick="enviarComprobacion('${s.id}')">📤 Enviar comprobación</button>`:''}
+            </div>
+          </div>
+        </div>`).join('') :
+        `<div class="empty-state"><div class="icon">👤</div><h3>Sin folios activos</h3>
+        <p>Los folios de colaboradores sin cuenta aparecerán aquí cuando estén en viaje.</p></div>`
+      }
+    </div>`;
+}
+
+function filtrarCompSinCuenta(){
+  const q = document.getElementById('sc-comp-buscar')?.value.toLowerCase()||'';
+  const lista = allSolicitudes.filter(s => s.esSinCuenta && s.email===USER.email &&
+    ['en_viaje','pendiente_comprobacion','comp_rechazada_gerente'].includes(s.estado) &&
+    (s.id.toLowerCase().includes(q) || (s.nombreColabSinCuenta||'').toLowerCase().includes(q)));
+  document.getElementById('sc-comp-lista').innerHTML = lista.length ? lista.map(s=>`
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <span class="mono" style="color:var(--accent);font-weight:700">${s.id}</span>
+        <span style="margin-left:10px;font-weight:600">${s.nombreColabSinCuenta||'—'}</span>
+        <span style="margin-left:8px;font-size:11px;color:var(--text2)">Emp. ${s.numEmpleado||'—'}</span>
+      </div>
+    </div>`).join('') : `<div style="text-align:center;padding:30px;color:var(--text2)">Sin resultados</div>`;
+}
+
+function abrirCompSinCuenta(solId){
+  // Reutilizar el mismo modal de comprobación normal
+  const c = document.getElementById('content');
+  c.dataset.selectedId = solId;
+  navigateTo('mis-comprobantes');
 }
 
 function renderReportes(c){

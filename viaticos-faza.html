@@ -1152,7 +1152,8 @@ function doLoginM365({ name, email, role }){
 function cambiarRolPrueba(nuevoRol){
   const rolesLabel = {
     empleado:'Colaborador', gerente:'Gerente de Área', director:'Director General',
-    administracion:'Administración', rh:'Recursos Humanos', tesoreria:'Tesorería', admin:'Administrador'
+    administracion:'Administración', rh:'Recursos Humanos', tesoreria:'Tesorería',
+    asistente:'Asistente de Dirección', admin:'Administrador'
   };
   USER.role = nuevoRol;
   document.getElementById('sidebar-role-label').textContent = rolesLabel[nuevoRol] || nuevoRol;

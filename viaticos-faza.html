@@ -4918,7 +4918,7 @@ function renderGuiaFlujo(c){
   c.innerHTML = `
   <div style="max-width:860px">
 
-    <!-- Sub-tabs de la guía -->
+    <!-- Sub-tabs -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px" id="guia-tabs">
       <button class="btn btn-primary" style="border-radius:20px;font-size:12px" onclick="guiaTab('roles',this)">👥 Roles</button>
       <button class="btn btn-ghost" style="border-radius:20px;font-size:12px" onclick="guiaTab('f1',this)">📋 Fase 1 — Solicitud</button>
@@ -4931,46 +4931,59 @@ function renderGuiaFlujo(c){
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
         ${[
           ['CO','Colaborador','Supervisor · Coordinador · Auxiliar','var(--blue)','rgba(56,139,253,.12)',[
-            'Crea la solicitud — el sistema genera el folio VT-XXXXX',
-            'Llena: destino, fechas, objetivo del viaje y estimación de gastos',
-            'Solicita anticipo si necesita dinero adelantado',
-            'Al regresar: carga CFDI, tickets y gastos sin factura ligados a su folio',
-            'Envía su comprobación al Gerente para VoBo',
-            'Corrige si la comprobación es devuelta con motivo',
+            'Crea su solicitud — el sistema genera el folio VT-XXXXX',
+            'Llena: destino, hora de salida y regreso, fechas, objetivo, estimación de gastos',
+            'Puede adjuntar bitácora de actividades (.xlsx) al crear la solicitud',
+            'El sistema calcula automáticamente la estimación según zona y horario',
+            'Si viaja en vehículo de empresa: activa el check "Transporte de la empresa"',
+            'Al regresar: carga CFDI y otros comprobantes ligados a su folio',
+            'Plazo: 3 días hábiles desde su regreso para enviar comprobación',
+            'Si no comprueba a tiempo: el folio pasa a descuento de nómina automáticamente',
           ]],
           ['GE','Gerente de Área','Primer autorizador del equipo','var(--yellow)','rgba(210,153,34,.12)',[
-            'Recibe y revisa solicitudes de viáticos de su equipo',
+            'Recibe y revisa solicitudes de su equipo con todos los detalles y bitácora',
             'Aprueba o rechaza — siempre con motivo',
-            'Al aprobar: solicitud pasa a Luis Gallardo (Administración)',
+            'Al aprobar colaboradores: pasa a Oscar Borjón (Administración)',
             'Si él mismo viaja: su solicitud va directo al Director General',
-            'Da VoBo a las comprobaciones de gastos de su equipo',
-            'Puede regresar una comprobación al colaborador para corrección',
+            'Puede generar solicitudes para colaboradores SIN cuenta M365 (con nombre y N° empleado)',
+            'Da VoBo a comprobaciones de gastos de sus colaboradores',
+            'Comprueba gastos de colaboradores sin cuenta desde su propio perfil',
+            'Las comprobaciones de colaboradores sin cuenta van directo a Administración',
           ]],
-          ['DI','Director General','Autoriza solicitudes de Gerentes','var(--purple)','rgba(163,113,247,.12)',[
+          ['DI','Director General','Autoriza solicitudes de Gerentes · Da VoBo a sus comprobaciones','var(--purple)','rgba(163,113,247,.12)',[
             'Recibe solicitudes directamente de los Gerentes de Área',
-            'Aprueba o rechaza con motivo',
-            'Al aprobar: solicitud pasa a Luis Gallardo (Administración)',
+            'Aprueba o rechaza con motivo — pasa a Oscar Borjón (Administración)',
+            'Da VoBo a las comprobaciones de gastos de los Gerentes',
+            'Accede a reportes de viáticos por período, departamento y empleado',
             'Máxima autoridad del proceso de viáticos',
           ]],
-          ['LG','Luis Gallardo','Administración — validador final','var(--green)','rgba(63,185,80,.12)',[
+          ['OB','Oscar Borjón','Administración — validador final','var(--green)','rgba(63,185,80,.12)',[
             'Valida solicitudes ya aprobadas por Gerente o Director',
-            'Al validar: notifica a RH y libera el depósito del anticipo',
-            'Registra el anticipo entregado en el módulo de Tesorería',
-            'Revisa comprobaciones que ya tienen el VoBo del Gerente',
-            'Decide: cierra el folio limpio O lo manda a descuento de nómina',
+            'Al validar: notifica a RH/Tesorería y libera el depósito del anticipo',
+            'Revisa comprobaciones que ya tienen VoBo de Gerente o Director',
+            'Decide: cierra el folio limpio O manda a descuento de nómina con motivo',
+            'Recibe notificación cuando vence el plazo de 3 días sin comprobación',
           ]],
-          ['RH','Recursos Humanos','Monitoreo y cobro','var(--blue)','rgba(56,139,253,.08)',[
+          ['TE','Tesorería','Oscar Borjón · Erika López','var(--accent)','rgba(255,107,0,.1)',[
+            'Registra el depósito del anticipo: monto, fecha, método y referencia',
+            'Al registrar: el folio cambia a "En viaje" y arranca el plazo de 3 días hábiles',
+            'Monitorea anticipos entregados vs comprobados',
+            'Recibe notificación cuando un folio se cierra o va a descuento de nómina',
+          ]],
+          ['RH','Recursos Humanos','Liliana Jiménez','var(--blue)','rgba(56,139,253,.08)',[
             'Recibe notificación cuando se libera cada anticipo',
             'Monitorea el plazo de 3 días hábiles para comprobación',
-            'Alerta cuando un colaborador no comprueba a tiempo',
-            'Recibe los folios enviados a descuento de nómina',
-            'Aplica el cobro en nómina y cierra el folio',
+            'Recibe alerta automática cuando un folio vence sin comprobación',
+            'Aplica descuentos en nómina y cierra el folio en el sistema',
+            'Recibe copia de todos los cierres de folios (limpio y descuento)',
           ]],
-          ['AS','Asistente de Dirección','Logística centralizada','var(--accent)','rgba(255,107,0,.1)',[
-            'Gestiona reservaciones de hospedaje en todas las zonas',
-            'Gestiona vuelos en Zona 4 (Chihuahua)',
-            'Las facturas van directo a nombre de Grupo Faza',
-            'El colaborador NO recibe anticipo para hospedaje ni vuelos',
+          ['JZ','Jazmín Gómez','Asistente de Dirección — Logística','var(--accent)','rgba(255,107,0,.08)',[
+            'Recibe correo automático cuando Tesorería libera un anticipo de 2+ días o zona con hotel/vuelo',
+            'Gestiona reservaciones de hotel en todas las zonas internas',
+            'Gestiona vuelos en Zona Chihuahua (cuando no viajan en vehículo empresa)',
+            'Registra en el sistema: hotel, check-in, check-out, costo, reservación, aerolínea y vuelo',
+            'El colaborador recibe correo automático con los datos de hotel y vuelo',
+            'Las facturas van directo a nombre de Grupo Faza — NO al colaborador',
           ]],
         ].map(([init,name,sub,color,bg,items])=>`
           <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px">
@@ -4990,156 +5003,204 @@ function renderGuiaFlujo(c){
 
     <!-- ── FASE 1 ── -->
     <div id="gt-f1" style="display:none">
-      ${[
-        ['1','CO','var(--blue)','rgba(56,139,253,.12)','Colaborador crea la solicitud','Portal del colaborador › Nueva solicitud',
-          'Llena el formulario completo y envía — el sistema genera el folio VT-XXXXX',
-          'Elige la sucursal (el sistema asigna zona y muestra los límites de gasto). Ingresa fechas, objetivo del viaje, justificación de por qué no puede resolverse de forma remota, estimación de gastos y monto de anticipo si necesita.',
-          'Folio creado — estado: Pendiente Gerente','var(--blue)','rgba(56,139,253,.12)',null],
-        ['2','GE','var(--yellow)','rgba(210,153,34,.12)','Gerente revisa y decide','Solicitudes por autorizar',
-          'Ve el folio completo: destino, objetivo, días y monto estimado',
-          null,null,null,null,
-          {ok:'Aprueba: puede agregar comentario. La solicitud pasa a Luis Gallardo (Administración).',ko:'Rechaza: escribe el motivo. El colaborador recibe notificación y puede corregir y reenviar. Si quien viaja es el propio Gerente, la solicitud va directo al Director.'}],
-        ['2b','DI','var(--purple)','rgba(163,113,247,.12)','Director (solo cuando viaja un Gerente)','Solicitudes por autorizar',
-          'Mismo proceso que el Gerente: aprueba o rechaza con motivo',
-          'Al aprobar, la solicitud del Gerente también pasa a Luis Gallardo en Administración para validación final.',
-          null,null,null,null],
-        ['3','LG','var(--green)','rgba(63,185,80,.12)','Luis Gallardo valida la solicitud','Validación › Por validar',
-          'Revisión administrativa y contable final antes de liberar el dinero',
-          null,'Estado: Aprobado — depósito liberado','var(--green)','rgba(63,185,80,.12)',
-          {ok:'Valida: RH es notificado. El Asistente gestiona hospedaje y vuelos. Tesorería puede registrar el anticipo.',ko:'Rechaza: regresa al colaborador con motivo. El Gerente también recibe notificación.'}],
-        ['4','AS','var(--accent)','rgba(255,107,0,.1)','Asistente gestiona hospedaje y vuelos','Proceso paralelo al anticipo',
-          'Reserva según la zona del viaje al mismo tiempo que se procesa el depósito',
-          'Zonas 1, 2 y 3: gestiona hospedaje. Zona 4 (Chihuahua): hospedaje + vuelo. Facturas a nombre de Faza. El colaborador solo comprobará alimentación y transporte local.',
-          null,null,null,null],
-        ['5','LG','var(--green)','rgba(63,185,80,.12)','Tesorería registra el depósito del anticipo','Anticipos pendientes › Registrar pago',
-          'Anota el anticipo entregado en el sistema, ligado al folio del colaborador',
-          'Registra: monto, fecha de depósito, método de pago y referencia. El folio cambia a "En viaje" y empieza a contar los 3 días hábiles para la comprobación.',
-          'Estado: En viaje — plazo de 3 días hábiles activo','var(--blue)','rgba(56,139,253,.12)',null],
-      ].map(([num,init,col,bg,title,where,action,detail,tag,tagCol,tagBg,fork])=>`
-        <div style="display:flex;gap:12px;margin-bottom:12px">
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
-            <div style="width:28px;height:28px;border-radius:50%;background:${bg};border:1.5px solid ${col};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${col}">${num}</div>
-            <div style="width:1.5px;flex:1;background:var(--border);min-height:16px"></div>
-          </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1;margin-bottom:2px">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
-              <div style="width:20px;height:20px;border-radius:50%;background:${bg};border:1px solid ${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${col};flex-shrink:0">${init}</div>
-              <span style="font-size:13px;font-weight:600">${title}</span>
-              <span style="font-size:11px;color:var(--text3)">— ${where}</span>
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        ${[
+          {n:'1',init:'CO',col:'var(--blue)',bg:'rgba(56,139,253,.12)',title:'Colaborador crea la solicitud',where:'Mis viáticos › Nueva solicitud',
+           body:`Llena el formulario: sucursal/destino, hora posible de salida y regreso, fechas, centro de costos y objetivo del viaje.
+                 El sistema calcula automáticamente la estimación de gastos según la zona y el horario (día completo: salida antes 8am; medio día: después de 8am).
+                 Puede adjuntar una bitácora en Excel con el programa de actividades.
+                 Si usa vehículo de la empresa activa el check correspondiente para excluir transporte local.`,
+           tag:'Folio creado — Estado: Pendiente Gerente',tagCol:'var(--yellow)',tagBg:'rgba(210,153,34,.1)'},
+
+          {n:'1b',init:'GE',col:'var(--yellow)',bg:'rgba(210,153,34,.12)',title:'Caso especial: Colaborador sin cuenta M365',where:'Mis viáticos › Solicitud sin cuenta M365',
+           body:`El Gerente genera la solicitud a nombre del colaborador (captura nombre y N° empleado).
+                 Como el Gerente ya está aprobando implícitamente, la solicitud va directo a Oscar Borjón (Administración) sin pasar por el Gerente.`,
+           tag:'Estado: Pendiente Administración',tagCol:'var(--green)',tagBg:'rgba(63,185,80,.1)'},
+
+          {n:'2',init:'GE',col:'var(--yellow)',bg:'rgba(210,153,34,.12)',title:'Gerente revisa y decide',where:'Solicitudes viáticos › Por autorizar',
+           body:`El Gerente ve el folio completo: destino, objetivo, horas de salida/regreso, estimación de gastos y bitácora (si fue adjuntada).
+                 Aprueba o rechaza con motivo. Al aprobar, la solicitud pasa a Oscar Borjón en Administración.
+                 Si quien viaja es el propio Gerente, su solicitud va directo al Director General.`,
+           tag:'Al aprobar → Estado: Pendiente Administración',tagCol:'var(--green)',tagBg:'rgba(63,185,80,.1)',
+           fork:{ok:'Aprueba: pasa a Oscar Borjón (Administración)',ko:'Rechaza: el colaborador recibe correo con el motivo y puede corregir'}},
+
+          {n:'2b',init:'DI',col:'var(--purple)',bg:'rgba(163,113,247,.12)',title:'Director General (cuando viaja un Gerente)',where:'Solicitudes viáticos › Por autorizar',
+           body:`El Director recibe la solicitud del Gerente directamente. Aprueba o rechaza con motivo.
+                 Al aprobar, pasa a Oscar Borjón (Administración) para validación final.`,
+           tag:'Al aprobar → Estado: Pendiente Administración',tagCol:'var(--green)',tagBg:'rgba(63,185,80,.1)'},
+
+          {n:'3',init:'OB',col:'var(--green)',bg:'rgba(63,185,80,.12)',title:'Oscar Borjón valida la solicitud',where:'Solicitudes › Por validar',
+           body:`Revisión administrativa y contable. Al validar, notifica a RH y libera el anticipo para Tesorería.`,
+           tag:'Estado: Aprobado',tagCol:'var(--green)',tagBg:'rgba(63,185,80,.1)',
+           fork:{ok:'Valida: RH y Tesorería son notificados. Tesorería puede registrar el depósito.',ko:'Rechaza: el colaborador y el Gerente reciben correo con motivo.'}},
+
+          {n:'4',init:'TE',col:'var(--accent)',bg:'rgba(255,107,0,.1)',title:'Tesorería registra el depósito del anticipo',where:'Anticipos pendientes › Registrar pago',
+           body:`Registra: monto entregado, fecha, método de pago y referencia bancaria.
+                 Al guardar, el folio cambia a "En viaje" y arranca el contador de 3 días hábiles para la comprobación.
+                 Jazmín (Asistente) recibe correo automático si el viaje requiere hotel o vuelo.`,
+           tag:'Estado: En viaje — plazo 3 días hábiles activo',tagCol:'var(--blue)',tagBg:'rgba(56,139,253,.12)'},
+
+          {n:'5',init:'JZ',col:'var(--accent)',bg:'rgba(255,107,0,.08)',title:'Jazmín gestiona hospedaje y/o vuelo (paralelo)',where:'Logística › Por gestionar',
+           body:`Jazmín recibe correo automático cuando Tesorería libera el depósito en viajes de 2+ días o zonas con hotel/vuelo gestionado.
+                 Registra: hotel (nombre, dirección, check-in, check-out, costo, reservación) y vuelo (aerolínea, número, fecha, costo).
+                 El colaborador recibe automáticamente un correo con todos los datos de su logística.`,
+           tag:'Logística completada — visible en detalle del folio',tagCol:'var(--purple)',tagBg:'rgba(163,113,247,.1)'},
+        ].map(step=>`
+          <div style="display:flex;gap:12px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+              <div style="width:28px;height:28px;border-radius:50%;background:${step.bg};border:1.5px solid ${step.col};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${step.col}">${step.n}</div>
+              <div style="width:1.5px;flex:1;background:var(--border);min-height:16px"></div>
             </div>
-            <div style="font-size:13px;margin-bottom:${detail||fork?'5px':'0'}">${action}</div>
-            ${detail?`<div style="font-size:12px;color:var(--text2);line-height:1.6">${detail}</div>`:''}
-            ${fork?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-              <div style="background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px;padding:9px">
-                <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:3px">✓ Aprueba</div>
-                <div style="font-size:12px;color:var(--text2)">${fork.ok}</div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1;margin-bottom:2px">
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+                <div style="width:20px;height:20px;border-radius:50%;background:${step.bg};border:1px solid ${step.col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${step.col};flex-shrink:0">${step.init}</div>
+                <strong style="font-size:13px">${step.title}</strong>
               </div>
-              <div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:8px;padding:9px">
-                <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:3px">✕ Rechaza</div>
-                <div style="font-size:12px;color:var(--text2)">${fork.ko}</div>
-              </div>
-            </div>`:''}
-            ${tag?`<span style="display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-top:7px;background:${tagBg};border:1px solid ${tagCol};color:${tagCol}">${tag}</span>`:''}
-          </div>
-        </div>`).join('')}
+              <div style="font-size:11px;color:var(--text3);margin-bottom:4px">📍 ${step.where}</div>
+              <div style="font-size:12px;color:var(--text2);margin-bottom:6px;line-height:1.6">${step.body}</div>
+              ${step.fork ? `
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+                <div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--green)">✅ ${step.fork.ok}</div>
+                <div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--red)">✕ ${step.fork.ko}</div>
+              </div>` : ''}
+              ${step.tag ? `<div style="margin-top:8px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-block;background:${step.tagBg};border:1px solid ${step.tagCol};color:${step.tagCol}">${step.tag}</div>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>
     </div>
 
     <!-- ── FASE 2 ── -->
     <div id="gt-f2" style="display:none">
-      ${[
-        ['6','CO','var(--blue)','rgba(56,139,253,.12)','Colaborador carga sus comprobantes','Comprobación de gastos › selecciona su folio',
-          'Registra cada gasto ligado al folio de su viaje',
-          'El sistema muestra las 5 tarjetas del folio en tiempo real: Anticipo recibido / Total comprobado / Pendiente por comprobar / Sin CFDI (vs límite Art. 93) / Saldo. Por cada gasto indica: categoría, tipo (CFDI con UUID, ticket o sin comprobante), monto, fecha y proveedor. Plazo: 3 días hábiles desde su regreso.',
-          'Estado: Reportando gastos','var(--text3)','var(--bg3)',null],
-        ['7','CO','var(--blue)','rgba(56,139,253,.12)','Envía la comprobación al Gerente','Botón "Enviar comprobación al Gerente"',
-          'Cuando tiene todos sus comprobantes cargados, envía para revisión y VoBo',
-          'El sistema calcula automáticamente el saldo: si gastó menos del anticipo (reintegra a la empresa) o si gastó más (la empresa le reembolsa). Muestra alerta si el monto sin factura excede el límite del Art. 93 LISR ($160/día).',
-          'Estado: Comprobación en revisión del Gerente','var(--yellow)','rgba(210,153,34,.12)',null],
-        ['8','GE','var(--yellow)','rgba(210,153,34,.12)','Gerente da VoBo a la comprobación','Revisar comprobaciones',
-          'Ve el resumen completo del folio: anticipo, total comprobado, saldo, gastos sin CFDI y cada comprobante individual',
-          null,'Estado: Comprobación en validación de Administración','var(--purple)','rgba(163,113,247,.12)',
-          {ok:'Da VoBo: la comprobación pasa a Luis Gallardo (Administración) para la decisión final.',ko:'Regresa con motivo: el colaborador ve el motivo en pantalla, corrige y vuelve a enviar.'}],
-        ['9','LG','var(--green)','rgba(63,185,80,.12)','Luis Gallardo — decisión final del folio','Validar comprobaciones',
-          'Ve el VoBo del Gerente, cada comprobante y el resumen fiscal y contable del folio',
-          null,null,null,null,
-          {ok:'Aprueba — cierre limpio: el folio queda cerrado. Solicitud de anticipo y comprobación de gastos quedan vinculadas en el mismo registro para auditoría.',ko:'Rechaza — descuento nómina: RH recibe el folio con el motivo para descontar el anticipo no justificado de la nómina.'}],
-        ['10','RH','var(--blue)','rgba(56,139,253,.08)','Cierre definitivo del folio','Dos caminos posibles',
-          'El folio se cierra de forma definitiva por uno de los dos caminos',
-          null,'Estado final: Cerrado ✓','var(--green)','rgba(63,185,80,.12)',
-          {ok:'Folio cerrado limpiamente: solicitud + comprobación vinculadas. Si el colaborador debe reintegrar, lo hace. Si la empresa le debe, Tesorería reembolsa.',ko:'Descuento en nómina: RH aplica el cobro, marca el folio como cerrado y queda el registro del descuento con su motivo.'}],
-      ].map(([num,init,col,bg,title,where,action,detail,tag,tagCol,tagBg,fork])=>`
-        <div style="display:flex;gap:12px;margin-bottom:12px">
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
-            <div style="width:28px;height:28px;border-radius:50%;background:${bg};border:1.5px solid ${col};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${col}">${num}</div>
-            <div style="width:1.5px;flex:1;background:var(--border);min-height:16px"></div>
-          </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1;margin-bottom:2px">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
-              <div style="width:20px;height:20px;border-radius:50%;background:${bg};border:1px solid ${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${col};flex-shrink:0">${init}</div>
-              <span style="font-size:13px;font-weight:600">${title}</span>
-              <span style="font-size:11px;color:var(--text3)">— ${where}</span>
+      <div class="alert alert-warn" style="margin-bottom:16px">
+        ⏰ <strong>Plazo: 3 días hábiles</strong> desde el regreso. Si no se comprueba en ese plazo, el folio pasa automáticamente a descuento de nómina.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${[
+          {n:'1',init:'CO',col:'var(--blue)',bg:'rgba(56,139,253,.12)',title:'Colaborador carga sus comprobantes',where:'Mis viáticos › Comprobación de gastos',
+           body:`El sistema muestra el contador de días hábiles restantes desde el regreso.
+                 Solo se aceptan: CFDI/Factura electrónica y Otros (tickets, fotos, notas).
+                 Cada comprobante puede llevar un archivo adjunto (foto, PDF, XML).
+                 Las tarjetas superiores muestran en tiempo real: anticipo recibido, comprobado, pendiente y saldo.
+                 Si el plazo vence sin enviar → el folio pasa automáticamente a descuento de nómina.`,
+           tag:'Envía comprobación → Estado: Comp. → Gerente',tagCol:'var(--yellow)',tagBg:'rgba(210,153,34,.1)'},
+
+          {n:'1b',init:'GE',col:'var(--yellow)',bg:'rgba(210,153,34,.12)',title:'Caso especial: Gerente comprueba por colaborador sin cuenta',where:'Comprobación › Comp. colab. sin cuenta',
+           body:`El Gerente busca el folio del colaborador sin cuenta M365 y carga sus comprobantes.
+                 Al enviar, va directo a Oscar Borjón (Administración) sin pasar por VoBo del Gerente, ya que el Gerente es quien comprueba.`,
+           tag:'Estado: Comp. → Administración',tagCol:'var(--green)',tagBg:'rgba(63,185,80,.1)'},
+
+          {n:'2',init:'GE',col:'var(--yellow)',bg:'rgba(210,153,34,.12)',title:'Gerente da VoBo a la comprobación',where:'Comprobación de gastos › Revisar comprobaciones',
+           body:`El Gerente revisa los comprobantes y los archivos adjuntos del colaborador.
+                 Puede ver el detalle de cada gasto: categoría, tipo, proveedor, monto y archivo.
+                 Da VoBo si los comprobantes están correctos, o regresa al colaborador para corrección.`,
+           tag:'Al dar VoBo → Estado: Comp. → Administración',tagCol:'var(--purple)',tagBg:'rgba(163,113,247,.1)',
+           fork:{ok:'Da VoBo: pasa a Oscar Borjón para decisión final.',ko:'Regresa: el colaborador recibe motivo y corrige.'}},
+
+          {n:'2b',init:'DI',col:'var(--purple)',bg:'rgba(163,113,247,.12)',title:'Director da VoBo (cuando comprueba un Gerente)',where:'Comprobación de gastos › VoBo comprobaciones Gerentes',
+           body:`Cuando un Gerente comprueba sus propios gastos, el VoBo lo da el Director General.
+                 Mismo proceso: revisa comprobantes, da VoBo o regresa con motivo.`,
+           tag:'Al dar VoBo → Estado: Comp. → Administración',tagCol:'var(--purple)',tagBg:'rgba(163,113,247,.1)'},
+
+          {n:'3',init:'OB',col:'var(--green)',bg:'rgba(63,185,80,.12)',title:'Oscar Borjón valida y decide el cierre',where:'Comprobación de gastos › Validar comprobaciones',
+           body:`Oscar revisa la comprobación completa. Tiene acceso a todos los comprobantes y archivos adjuntos.
+                 Ve el saldo: si hay saldo a favor de la empresa → el colaborador debe reintegrar.
+                 Toma la decisión final: cierra limpio o manda a descuento de nómina.`,
+           tag:'',tagCol:'',tagBg:'',
+           fork:{ok:'Cierra folio: colaborador y RH reciben correo de cierre.',ko:'Descuento nómina: RH recibe instrucción con monto y motivo.'}},
+        ].map(step=>`
+          <div style="display:flex;gap:12px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+              <div style="width:28px;height:28px;border-radius:50%;background:${step.bg};border:1.5px solid ${step.col};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${step.col}">${step.n}</div>
+              <div style="width:1.5px;flex:1;background:var(--border);min-height:16px"></div>
             </div>
-            <div style="font-size:13px;margin-bottom:${detail||fork?'5px':'0'}">${action}</div>
-            ${detail?`<div style="font-size:12px;color:var(--text2);line-height:1.6">${detail}</div>`:''}
-            ${fork?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-              <div style="background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px;padding:9px">
-                <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:3px">✓ Aprueba</div>
-                <div style="font-size:12px;color:var(--text2)">${fork.ok}</div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1;margin-bottom:2px">
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+                <div style="width:20px;height:20px;border-radius:50%;background:${step.bg};border:1px solid ${step.col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${step.col};flex-shrink:0">${step.init}</div>
+                <strong style="font-size:13px">${step.title}</strong>
               </div>
-              <div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:8px;padding:9px">
-                <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:3px">✕ Rechaza</div>
-                <div style="font-size:12px;color:var(--text2)">${fork.ko}</div>
-              </div>
-            </div>`:''}
-            ${tag?`<span style="display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-top:7px;background:${tagBg};border:1px solid ${tagCol};color:${tagCol}">${tag}</span>`:''}
-          </div>
-        </div>`).join('')}
+              <div style="font-size:11px;color:var(--text3);margin-bottom:4px">📍 ${step.where}</div>
+              <div style="font-size:12px;color:var(--text2);margin-bottom:6px;line-height:1.6">${step.body}</div>
+              ${step.fork ? `
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+                <div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--green)">✅ ${step.fork.ok}</div>
+                <div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--red)">✕ ${step.fork.ko}</div>
+              </div>` : ''}
+              ${step.tag ? `<div style="margin-top:8px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-block;background:${step.tagBg};border:1px solid ${step.tagCol};color:${step.tagCol}">${step.tag}</div>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>
     </div>
 
     <!-- ── ESTADOS ── -->
     <div id="gt-est" style="display:none">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Cada folio recorre estos estados en orden. En rojo están los puntos donde puede devolverse y el colaborador corrige.</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Cada folio recorre estos estados en orden. Los estados en rojo son puntos donde se puede devolver o bloquear.</div>
 
       <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Fase 1 — Solicitud y anticipo</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
-        ${[['Borrador','var(--text3)','var(--bg3)'],['Pend. Gerente','var(--yellow)','rgba(210,153,34,.1)'],['Pend. Director','var(--purple)','rgba(163,113,247,.1)'],['Pend. Administración','var(--blue)','rgba(56,139,253,.1)'],['Aprobado','var(--green)','rgba(63,185,80,.1)'],['En viaje','var(--blue)','rgba(56,139,253,.15)']].map(([l,c,b],i,arr)=>`
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">
+        ${[
+          ['Borrador','var(--text3)','var(--bg3)'],
+          ['Pend. Gerente','var(--yellow)','rgba(210,153,34,.1)'],
+          ['Pend. Director','var(--purple)','rgba(163,113,247,.1)'],
+          ['Pend. Administración','var(--blue)','rgba(56,139,253,.1)'],
+          ['Aprobado','var(--green)','rgba(63,185,80,.1)'],
+          ['En viaje ⏰','var(--blue)','rgba(56,139,253,.15)'],
+        ].map(([l,c,b],i,arr)=>`
           <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:${b};border:1px solid ${c};color:${c}">${l}</span>${i<arr.length-1?'<span style="color:var(--text3);font-size:11px">→</span>':''}
         `).join('')}
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:18px">
         <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red)">Rechazado</span>
-        puede ocurrir en el paso del Gerente, Director o Administración
+        puede ocurrir en el paso del Gerente, Director o Administración. El colaborador recibe correo con motivo.
+        <br><span style="font-size:11px;color:var(--text3)">Nota: colaboradores sin cuenta M365 van de Borrador directo a Pend. Administración (el Gerente aprueba al crear).</span>
       </div>
 
       <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Fase 2 — Comprobación de gastos</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
-        ${[['En viaje','var(--blue)','rgba(56,139,253,.15)'],['Reportando gastos','var(--text3)','var(--bg3)'],['Comp. → Gerente','var(--yellow)','rgba(210,153,34,.1)'],['Comp. → Admon.','var(--purple)','rgba(163,113,247,.1)']].map(([l,c,b],i,arr)=>`
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">
+        ${[
+          ['En viaje','var(--blue)','rgba(56,139,253,.15)'],
+          ['Comp. → Gerente','var(--yellow)','rgba(210,153,34,.1)'],
+          ['Comp. → Admon.','var(--purple)','rgba(163,113,247,.1)'],
+        ].map(([l,c,b],i,arr)=>`
           <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:${b};border:1px solid ${c};color:${c}">${l}</span>${i<arr.length-1?'<span style="color:var(--text3);font-size:11px">→</span>':''}
         `).join('')}
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(63,185,80,.1);border:1px solid var(--green);color:var(--green)">Comprobado</span>
         <span style="color:var(--text3);font-size:11px">→</span>
         <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(63,185,80,.15);border:1px solid var(--green);color:var(--green)">Cerrado ✓</span>
-        <span style="font-size:12px;color:var(--text3);margin:0 6px">ó</span>
+        <span style="font-size:12px;color:var(--text3);margin:0 4px">ó</span>
         <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red)">Descuento nómina</span>
         <span style="color:var(--text3);font-size:11px">→</span>
         <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(63,185,80,.15);border:1px solid var(--green);color:var(--green)">Cerrado ✓</span>
       </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
         <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(248,81,73,.1);border:1px solid var(--red);color:var(--red)">Comp. rechazada</span>
-        puede ocurrir en el VoBo del Gerente o en la validación de Administración — el colaborador corrige y reenvía
+        puede ocurrir en el VoBo del Gerente/Director o en validación de Administración — el colaborador corrige y reenvía.
       </div>
-
-      <div style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--yellow);display:flex;gap:8px;margin-bottom:16px">
-        <span style="font-size:16px;flex-shrink:0">⚠️</span>
-        <div><strong>Vencido (3 días hábiles):</strong> si el colaborador no envía su comprobación dentro de los 3 días hábiles desde su regreso, RH y Luis Gallardo reciben alerta automática para proceder al descuento de nómina.</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px">
+        <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(210,153,34,.1);border:1px solid var(--yellow);color:var(--yellow)">⚠️ Vencido automático</span>
+        Si el colaborador no envía comprobación en <strong>3 días hábiles</strong> desde su regreso → el sistema marca el folio como descuento de nómina automáticamente al abrir la sección de comprobación.
+        <br><span style="font-size:11px;color:var(--text3)">Nota: colaboradores sin cuenta M365 → Comp. va directo a Admon. (sin VoBo del Gerente). Gerentes → VoBo lo da el Director General.</span>
       </div>
 
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
         <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Reglas clave de la política</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-          ${['Hospedaje gestionado por Asistente en todas las zonas','Vuelos Chihuahua siempre por Asistente de Dirección','Alimentos día completo: máx. $800 (sin CFDI: $160)','Alimentos medio día: máx. $450 (sin CFDI: $90)','Sin CFDI: máx. 20% del límite diario (Art. 93 LISR)','Plazo comprobación: 3 días hábiles desde el regreso','Facturas siempre a nombre de razón social de Faza','Gerente viaja: solicitud va directo al Director General','Excepciones: autorización expresa de Dirección General','No se aceptan notas de remisión bajo ninguna circunstancia'].map(r=>`
+          ${[
+            'Plazo comprobación: 3 días hábiles desde el regreso',
+            'Anticipo siempre se entrega — no se viaja sin dinero',
+            'Alimentos día completo: máx. $800 (sin CFDI: máx. $160)',
+            'Alimentos medio día: máx. $450 (sin CFDI: máx. $90)',
+            'Día completo: salida antes de las 8:00 a.m.',
+            'Medio día: salida después de las 8:00 a.m.',
+            'Solo CFDI y Otros (ticket/foto) — sin comprobante NO aceptado',
+            'Hospedaje gestionado por Jazmín en todas las zonas',
+            'Vuelos en Zona Chihuahua: siempre por Jazmín',
+            'Facturas de hotel/vuelo a nombre de Grupo Faza',
+            'Si usa vehículo empresa: sin transporte local en anticipo',
+            'Gerente viaja → solicitud va directo al Director General',
+            'Gerente comprueba → VoBo lo da el Director General',
+            'Sin cuenta M365: el Gerente genera y comprueba a su nombre',
+            'Excepciones de monto: autorización expresa de Dirección General',
+          ].map(r=>`
             <div style="font-size:12px;color:var(--text2);display:flex;gap:5px;line-height:1.5"><span style="color:var(--text3);flex-shrink:0;font-weight:700">·</span>${r}</div>
           `).join('')}
         </div>
@@ -5148,7 +5209,6 @@ function renderGuiaFlujo(c){
 
   </div>`;
 
-  // activar primer tab por defecto
   guiaTab('roles', document.querySelector('#guia-tabs button'));
 }
 

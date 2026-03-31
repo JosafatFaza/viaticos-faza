@@ -979,7 +979,7 @@ const STATUS_LABELS = {
   comprobado:                      'Comprobado ✓',
   descuento_nomina:                'A descuento nómina',
   cerrado:                         'Cerrado',
-  vencido_comprobacion:            'Vencido (5 días)',
+  vencido_comprobacion:            'Vencido (3 días háb.)',
 };
 const STATUS_CLASS = {
   borrador:                        'badge-draft',
@@ -1004,7 +1004,7 @@ const STATUS_CLASS = {
 const ADMIN_EMAIL = 'oscar.borjon@faza.com.mx';
 const ADMIN_NAME  = 'Oscar Borjón';
 // Días hábiles para comprobación post-viaje
-const DIAS_COMPROBACION = 5;
+const DIAS_COMPROBACION = 3;
 
 /* ═══════════════════════════════════════════════════════
    UTILIDADES
@@ -1432,7 +1432,7 @@ const VIEW_TITLES = {
   'descuentos-nomina':         ['Descuentos a nómina','Colaboradores con folio a cobro'],
   'tesoreria':                 ['Anticipos pendientes','Solicitudes validadas listas para depósito'],
   'anticipos-entregados':      ['Seguimiento de anticipos','Cruce folio × comprobación'],
-  'monitoreo-rh':              ['Alertas de comprobación','Empleados con plazo vencido (5 días hábiles)'],
+  'monitoreo-rh':              ['Alertas de comprobación','Empleados con plazo vencido (3 días hábiles)'],
   'dashboard':                 ['Dashboard financiero','Resumen ejecutivo de viáticos'],
   'todas-solicitudes':         ['Todas las solicitudes','Vista global del sistema'],
   'reportes':                  ['Reportes','Análisis y exportación de datos'],
@@ -2236,6 +2236,16 @@ function renderMisComprobantes(c){
     ['en_viaje','pendiente_comprobacion','comp_rechazada_gerente','comp_rechazada_admon'].includes(s.estado)
   );
 
+  // Verificar vencimientos y marcar automáticamente
+  viajes.forEach(s => {
+    if(s.fechaRegreso && s.estado === 'en_viaje'){
+      const diasVencido = calcDiasHabilesDesdeRegreso(s.fechaRegreso);
+      if(diasVencido > DIAS_COMPROBACION){
+        marcarVencidoAutomatico(s.id);
+      }
+    }
+  });
+
   if(viajes.length === 0){
     c.innerHTML = `<div class="empty-state"><div class="icon">🧾</div><h3>Sin folios por comprobar</h3>
       <p>Aquí aparecerán tus folios una vez que hayas recibido el anticipo y regresado del viaje.<br>
@@ -2427,10 +2437,32 @@ function renderMisComprobantes(c){
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="navigateTo('mis-solicitudes')">← Mis solicitudes</button>
-          <button class="btn btn-primary" onclick="enviarComprobacion('${sol.id}')">📤 Enviar comprobación al Gerente</button>
+          <button class="btn btn-primary" onclick="enviarComprobacion('${sol.id}')">📤 Enviar comprobación</button>
         </div>
       </div>` : ''}
-    </div>`;
+    </div>
+    ${(()=>{
+      const diasVencido = calcDiasHabilesDesdeRegreso(sol.fechaRegreso);
+      const diasRestantes = DIAS_COMPROBACION - diasVencido;
+      if(diasVencido > DIAS_COMPROBACION){
+        return `<div class="alert alert-warn" style="margin-top:12px">
+          ⛔ <strong>Plazo vencido.</strong> El período de ${DIAS_COMPROBACION} días hábiles para comprobar ya expiró
+          (${diasVencido} días hábiles desde tu regreso). Este folio será enviado a descuento de nómina por 
+          <strong>${ADMIN_NAME}</strong>. Contacta a Administración si tienes dudas.
+        </div>`;
+      } else if(diasRestantes <= 1){
+        return `<div class="alert alert-warn" style="margin-top:12px">
+          ⚠️ <strong>¡Último día!</strong> Tienes que enviar tu comprobación hoy. Vence en ${diasRestantes} día hábil.
+        </div>`;
+      } else if(diasVencido >= 0){
+        return `<div class="alert alert-info" style="margin-top:12px">
+          ⏰ Te quedan <strong>${diasRestantes} día${diasRestantes!==1?'s':''} hábil${diasRestantes!==1?'es':''}</strong> para enviar tu comprobación 
+          (${diasVencido} de ${DIAS_COMPROBACION} días hábiles usados).
+        </div>`;
+      }
+      return '';
+    })()}
+  `;
 }
 
 function switchSolicitudComprobacion(id){
@@ -3447,10 +3479,39 @@ function calcDiasDesdeRegreso(fechaRegreso){
   return dias;
 }
 
+// Alias para usar en comprobantes
+function calcDiasHabilesDesdeRegreso(fechaRegreso){
+  return calcDiasDesdeRegreso(fechaRegreso);
+}
+
+// Marcar folio como vencido y notificar a Admon/RH
+async function marcarVencidoAutomatico(solId){
+  const s = allSolicitudes.find(x=>x.id===solId);
+  if(!s || s.estado !== 'en_viaje') return;
+  // Ya vencido — marcar como descuento_nomina automático
+  const idx = allSolicitudes.findIndex(x=>x.id===solId);
+  if(idx>=0){
+    allSolicitudes[idx].estado = 'descuento_nomina';
+    allSolicitudes[idx].motivoDescuento = `No comprobó gastos en ${DIAS_COMPROBACION} días hábiles posteriores a su regreso`;
+    allSolicitudes[idx].montoDescuento = Number(s.montoEntregado||0);
+    allSolicitudes[idx].cerradoPor = 'Sistema automático';
+    saveSolicitudLocal(allSolicitudes[idx]);
+  }
+  await spUpdateEstado(solId, {
+    Estado:          'descuento_nomina',
+    MotivoDescuento: `No comprobó gastos en ${DIAS_COMPROBACION} días hábiles posteriores a su regreso`,
+    MontoDescuento:  Number(s.montoEntregado||0),
+    CerradoPor:      'Sistema automático',
+    FechaDescuento:  today()
+  }).catch(e => console.warn('marcarVencidoAutomatico:', e));
+  updateBadges();
+  console.log(`Folio ${solId} marcado como descuento_nomina por vencimiento automático`);
+}
+
 function renderMonitoreoRH(c){
   const enViaje   = allSolicitudes.filter(s=>s.estado==='en_viaje');
   const vencidos  = allSolicitudes.filter(s=>s.estado==='vencido_comprobacion');
-  // Detectar viajes activos que ya superaron 5 días hábiles
+  // Detectar viajes activos que ya superaron 3 días hábiles
   const porVencer = enViaje.filter(s=>{
     const dias = calcDiasDesdeRegreso(s.fechaRegreso);
     return dias > 0 && dias <= DIAS_COMPROBACION;
@@ -3460,7 +3521,7 @@ function renderMonitoreoRH(c){
   c.innerHTML = `
     <div class="stats-grid">
       <div class="stat-card stat-yellow"><div class="stat-card-label">En viaje</div><div class="stat-card-value">${enViaje.length}</div><div class="stat-card-sub">Con depósito activo</div></div>
-      <div class="stat-card" style="border-left:3px solid var(--accent)"><div class="stat-card-label">Por vencer (1–5 días)</div><div class="stat-card-value">${porVencer.length}</div></div>
+      <div class="stat-card" style="border-left:3px solid var(--accent)"><div class="stat-card-label">Por vencer (1–3 días)</div><div class="stat-card-value">${porVencer.length}</div></div>
       <div class="stat-card" style="border-left:3px solid var(--red)"><div class="stat-card-label">Vencidos (>5 días)</div><div class="stat-card-value" style="color:var(--red)">${recienVencidos.length + vencidos.length}</div><div class="stat-card-sub">Pasan a cobro</div></div>
     </div>
 
@@ -3596,7 +3657,7 @@ async function confirmarAnticipo(id){
   const ref    = document.getElementById('a-ref').value.trim();
   if(!monto||!ref){ toast('Completa monto y referencia', 'error'); return; }
 
-  // Calcular fecha límite: 5 días hábiles desde hoy
+  // Calcular fecha límite: 3 días hábiles desde hoy
   function addDiasHabiles(d, n){
     const dt = new Date(d);
     let added = 0;
@@ -4900,7 +4961,7 @@ function renderGuiaFlujo(c){
           ]],
           ['RH','Recursos Humanos','Monitoreo y cobro','var(--blue)','rgba(56,139,253,.08)',[
             'Recibe notificación cuando se libera cada anticipo',
-            'Monitorea el plazo de 5 días hábiles para comprobación',
+            'Monitorea el plazo de 3 días hábiles para comprobación',
             'Alerta cuando un colaborador no comprueba a tiempo',
             'Recibe los folios enviados a descuento de nómina',
             'Aplica el cobro en nómina y cierra el folio',
@@ -4952,8 +5013,8 @@ function renderGuiaFlujo(c){
           null,null,null,null],
         ['5','LG','var(--green)','rgba(63,185,80,.12)','Tesorería registra el depósito del anticipo','Anticipos pendientes › Registrar pago',
           'Anota el anticipo entregado en el sistema, ligado al folio del colaborador',
-          'Registra: monto, fecha de depósito, método de pago y referencia. El folio cambia a "En viaje" y empieza a contar los 5 días hábiles para la comprobación.',
-          'Estado: En viaje — plazo de 5 días hábiles activo','var(--blue)','rgba(56,139,253,.12)',null],
+          'Registra: monto, fecha de depósito, método de pago y referencia. El folio cambia a "En viaje" y empieza a contar los 3 días hábiles para la comprobación.',
+          'Estado: En viaje — plazo de 3 días hábiles activo','var(--blue)','rgba(56,139,253,.12)',null],
       ].map(([num,init,col,bg,title,where,action,detail,tag,tagCol,tagBg,fork])=>`
         <div style="display:flex;gap:12px;margin-bottom:12px">
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
@@ -4988,7 +5049,7 @@ function renderGuiaFlujo(c){
       ${[
         ['6','CO','var(--blue)','rgba(56,139,253,.12)','Colaborador carga sus comprobantes','Comprobación de gastos › selecciona su folio',
           'Registra cada gasto ligado al folio de su viaje',
-          'El sistema muestra las 5 tarjetas del folio en tiempo real: Anticipo recibido / Total comprobado / Pendiente por comprobar / Sin CFDI (vs límite Art. 93) / Saldo. Por cada gasto indica: categoría, tipo (CFDI con UUID, ticket o sin comprobante), monto, fecha y proveedor. Plazo: 5 días hábiles desde su regreso.',
+          'El sistema muestra las 5 tarjetas del folio en tiempo real: Anticipo recibido / Total comprobado / Pendiente por comprobar / Sin CFDI (vs límite Art. 93) / Saldo. Por cada gasto indica: categoría, tipo (CFDI con UUID, ticket o sin comprobante), monto, fecha y proveedor. Plazo: 3 días hábiles desde su regreso.',
           'Estado: Reportando gastos','var(--text3)','var(--bg3)',null],
         ['7','CO','var(--blue)','rgba(56,139,253,.12)','Envía la comprobación al Gerente','Botón "Enviar comprobación al Gerente"',
           'Cuando tiene todos sus comprobantes cargados, envía para revisión y VoBo',
@@ -5072,13 +5133,13 @@ function renderGuiaFlujo(c){
 
       <div style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--yellow);display:flex;gap:8px;margin-bottom:16px">
         <span style="font-size:16px;flex-shrink:0">⚠️</span>
-        <div><strong>Vencido (5 días hábiles):</strong> si el colaborador no envía su comprobación dentro de los 5 días hábiles desde su regreso, RH y Luis Gallardo reciben alerta automática para proceder al descuento de nómina.</div>
+        <div><strong>Vencido (3 días hábiles):</strong> si el colaborador no envía su comprobación dentro de los 3 días hábiles desde su regreso, RH y Luis Gallardo reciben alerta automática para proceder al descuento de nómina.</div>
       </div>
 
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
         <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Reglas clave de la política</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-          ${['Hospedaje gestionado por Asistente en todas las zonas','Vuelos Chihuahua siempre por Asistente de Dirección','Alimentos día completo: máx. $800 (sin CFDI: $160)','Alimentos medio día: máx. $450 (sin CFDI: $90)','Sin CFDI: máx. 20% del límite diario (Art. 93 LISR)','Plazo comprobación: 5 días hábiles desde el regreso','Facturas siempre a nombre de razón social de Faza','Gerente viaja: solicitud va directo al Director General','Excepciones: autorización expresa de Dirección General','No se aceptan notas de remisión bajo ninguna circunstancia'].map(r=>`
+          ${['Hospedaje gestionado por Asistente en todas las zonas','Vuelos Chihuahua siempre por Asistente de Dirección','Alimentos día completo: máx. $800 (sin CFDI: $160)','Alimentos medio día: máx. $450 (sin CFDI: $90)','Sin CFDI: máx. 20% del límite diario (Art. 93 LISR)','Plazo comprobación: 3 días hábiles desde el regreso','Facturas siempre a nombre de razón social de Faza','Gerente viaja: solicitud va directo al Director General','Excepciones: autorización expresa de Dirección General','No se aceptan notas de remisión bajo ninguna circunstancia'].map(r=>`
             <div style="font-size:12px;color:var(--text2);display:flex;gap:5px;line-height:1.5"><span style="color:var(--text3);flex-shrink:0;font-weight:700">·</span>${r}</div>
           `).join('')}
         </div>
